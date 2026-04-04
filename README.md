@@ -5,7 +5,7 @@ India's production-ready GAT-B (Graduate Aptitude Test in Biotechnology) prepara
 ## Features
 
 - **10 GAT-B Subjects** with complete topic hierarchy
-- **Authentication**: Phone OTP + Email OTP via Supabase
+- **Authentication**: Email + Password (default) with Sign Up / Sign In / Forgot Password; Phone OTP + Email OTP as alternatives
 - **Payments**: Razorpay (India-only, INR)
   - Full Course: ₹999 (lifetime, all 10 subjects)
   - Single Subject: ₹449 (lifetime, per subject)
@@ -25,7 +25,7 @@ India's production-ready GAT-B (Graduate Aptitude Test in Biotechnology) prepara
 |-------|-----------|
 | Frontend + API | Next.js 15 (App Router, TypeScript) |
 | Styling | Tailwind CSS |
-| Auth | Supabase Auth (OTP) |
+| Auth | Supabase Auth (Email+Password & OTP) |
 | Database | Supabase Postgres |
 | Payments | Razorpay |
 | AI | OpenAI GPT-4o-mini |
@@ -59,8 +59,10 @@ RAZORPAY_KEY_SECRET=your-razorpay-secret
 RAZORPAY_WEBHOOK_SECRET=your-webhook-secret
 NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxxx
 OPENAI_API_KEY=sk-xxxxxxxxxxxxx
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3000   # Used as base for password-reset redirect URL
 ```
+
+> **Security note:** `SUPABASE_SERVICE_ROLE_KEY` is used server-side only and is never exposed to the browser. Only `NEXT_PUBLIC_SUPABASE_ANON_KEY` (and other `NEXT_PUBLIC_*` variables) are sent to the client.
 
 ### 3. Supabase Setup
 
@@ -73,14 +75,33 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
    VALUES ('your-supabase-user-uuid', 'your@email.com');
    ```
 
-### 4. Razorpay Webhook
+### 4. Supabase Auth Configuration
+
+#### Enable Email + Password sign-ins
+1. Supabase Dashboard → **Authentication → Providers → Email**
+2. Ensure **Email provider** is **enabled**
+3. (Optional) Keep "Confirm email" ON so new users verify their address
+
+#### Password Reset — Redirect URLs
+The "Forgot Password" flow sends a reset link to the user's email. The link redirects to `/auth/reset` in your app. You must whitelist this URL in Supabase:
+
+1. Supabase Dashboard → **Authentication → URL Configuration**
+2. Set **Site URL** to your production domain (e.g. `https://your-domain.com`)
+3. Under **Redirect URLs**, add:
+   - `http://localhost:3000/auth/reset` (local dev)
+   - `https://your-domain.com/auth/reset` (production)
+4. Save
+
+> **Important:** `NEXT_PUBLIC_APP_URL` in `.env.local` must match the domain you add above so that `resetPasswordForEmail` generates the correct redirect URL.
+
+### 5. Razorpay Webhook
 
 1. Dashboard > Settings > Webhooks
 2. Add URL: `https://your-domain.com/api/payments/webhook`
 3. Select event: `payment.captured`
 4. Copy webhook secret to `RAZORPAY_WEBHOOK_SECRET`
 
-### 5. Run Dev Server
+### 6. Run Dev Server
 
 ```bash
 npm run dev
@@ -96,7 +117,8 @@ Open http://localhost:3000
 src/
 ├── app/
 │   ├── page.tsx                        # Landing page
-│   ├── login/page.tsx                  # OTP login
+│   ├── login/page.tsx                  # Email+Password login (default) + OTP (alternative)
+│   ├── auth/reset/page.tsx             # Password reset (handles Supabase reset link)
 │   ├── app/
 │   │   ├── dashboard/page.tsx          # User dashboard
 │   │   ├── subjects/

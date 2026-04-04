@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
@@ -18,21 +18,24 @@ export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false)
   const [invalidLink, setInvalidLink] = useState(false)
 
+  // Ref so the timeout callback always reads the latest recovery state.
+  const recoveredRef = useRef(false)
+
   useEffect(() => {
     // Supabase browser client auto-processes the recovery hash fragment and fires
     // a PASSWORD_RECOVERY event when the reset link is valid.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
+        recoveredRef.current = true
         setReady(true)
       }
     })
 
     // If no recovery event fires within 3 seconds, the link is missing or invalid.
     const timeout = setTimeout(() => {
-      setInvalidLink((prev) => {
-        if (!prev && !ready) return true
-        return prev
-      })
+      if (!recoveredRef.current) {
+        setInvalidLink(true)
+      }
     }, 3000)
 
     return () => {
@@ -142,3 +145,4 @@ export default function ResetPasswordPage() {
 }
 
 export const dynamic = 'force-dynamic'
+

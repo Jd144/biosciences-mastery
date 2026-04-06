@@ -71,6 +71,7 @@ function BuySubjectContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planType: 'SINGLE_SUBJECT', subjectSlug: selectedSubject }),
+        credentials: 'include',
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)

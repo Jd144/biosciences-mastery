@@ -75,19 +75,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Create entitlement
+    const EXCLUSION_CONSTRAINT_ERROR = '23P01'
+    const UNIQUE_VIOLATION_ERROR = '23505'
+
     if (order.plan_type === 'FULL') {
       const { error: entitlementError } = await supabase
         .from('entitlements')
-        .upsert(
-          {
-            user_id: order.user_id,
-            type: 'FULL',
-            subject_id: null,
-          },
-          { onConflict: 'user_id,subject_id', ignoreDuplicates: true }
-        )
+        .insert({
+          user_id: order.user_id,
+          type: 'FULL',
+          subject_id: null,
+        })
 
-      if (entitlementError) {
+      if (entitlementError && entitlementError.code !== EXCLUSION_CONSTRAINT_ERROR && entitlementError.code !== UNIQUE_VIOLATION_ERROR) {
         console.error('Entitlement (FULL) error:', entitlementError)
       }
     } else if (order.plan_type === 'SINGLE_SUBJECT' && order.subject_id) {

@@ -23,7 +23,7 @@ India's production-ready GAT-B (Graduate Aptitude Test in Biotechnology) prepara
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend + API | Next.js 15 (App Router, TypeScript) |
+| Frontend + API | Next.js 16 (App Router, TypeScript) |
 | Styling | Tailwind CSS |
 | Auth | Supabase Auth (Email+Password & OTP) |
 | Database | Supabase Postgres |
@@ -115,6 +115,7 @@ Open http://localhost:3000
 
 ```
 src/
+├── proxy.ts                            # Route protection (Next.js 16 Proxy)
 ├── app/
 │   ├── page.tsx                        # Landing page
 │   ├── login/page.tsx                  # Email+Password login (default) + OTP (alternative)
@@ -140,7 +141,9 @@ src/
 
 supabase/
 ├── schema.sql                          # DB schema + RLS policies
-└── seed.sql                            # 10 subjects + all topics
+├── seed.sql                            # 10 subjects + all topics
+└── migrations/
+    └── 20240101_fix_rls_policies.sql   # Idempotent RLS policy fixes
 ```
 
 ---
@@ -157,6 +160,14 @@ Entitlements are ONLY created via Razorpay webhook server-side verification.
 
 ---
 
+## Route Protection
+
+All `/app/*` and `/admin/*` routes are protected by the `src/proxy.ts` file (Next.js 16 Proxy — successor to Middleware). Unauthenticated requests are automatically redirected to `/login`.
+
+> **Note:** In Next.js 16 the `middleware.ts` file convention is deprecated. This project uses `src/proxy.ts` with a named `proxy` export. Do not rename it back to `middleware.ts`.
+
+---
+
 ## Payment Flow
 
 ```
@@ -169,3 +180,26 @@ User clicks Buy
             → Creates entitlement in DB
               → User can access content
 ```
+
+---
+
+## Troubleshooting
+
+### `/app/dashboard` returns 500
+- **Cause**: Most commonly, Supabase env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) are not set in Vercel.
+- **Fix**: Go to Vercel → Project → Settings → Environment Variables and add the required vars, then redeploy.
+
+### Auth not working / always redirected to login
+- **Cause**: Proxy (`src/proxy.ts`) not running, or cookies not propagating.
+- **Check**: Ensure `src/proxy.ts` exists (not `src/middleware.ts`) and exports a `proxy` function.
+
+### RLS errors in Supabase logs
+- Run `supabase/migrations/20240101_fix_rls_policies.sql` in the Supabase SQL Editor to ensure correct policies.
+- Users must be authenticated to read `topic_content`, `topic_tables`, `topic_diagrams`, `quizzes`, and `quiz_questions`.
+- Only the authenticated user can read their own `entitlements`, `orders`, and `ai_notes_cache`.
+- `admin_allowlist` is service-role-only — never expose via client queries.
+
+### Build fails with "Middleware is missing expected function export"
+- **Cause**: Old `src/middleware.ts` without a function export exists.
+- **Fix**: Ensure `src/middleware.ts` does not exist. Use `src/proxy.ts` instead.
+

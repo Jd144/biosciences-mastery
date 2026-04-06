@@ -3,6 +3,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle } from 'lucide-react'
 
+declare global {
+  interface Window {
+    Razorpay: new (options: Record<string, unknown>) => { open: () => void }
+  }
+}
+
 export default function BuyFullPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -12,7 +18,7 @@ export default function BuyFullPage() {
     setLoading(true)
     setError('')
     try {
-      // Razorpay script loader
+      // Load Razorpay script if not already loaded
       if (!window.Razorpay) {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement('script')
@@ -23,26 +29,40 @@ export default function BuyFullPage() {
         })
       }
 
-      // Backend order create (IMPORTANT: credentials: 'include')
+      if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+        throw new Error('Payment gateway is not configured. Please contact support.')
+      }
+
       const res = await fetch('/api/payments/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planType: 'FULL' }),
-        credentials: 'include', // <-- Yeh zaroor hona chahiye!
+        credentials: 'include',
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
 
-      // Razorpay checkout config
       const rzp = new window.Razorpay({
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, // <--- yeh .env me sahi hona chahiye!
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: data.amount,
         currency: 'INR',
         name: 'BioSciences Mastery',
         description: 'Full Course — Lifetime Access',
         order_id: data.orderId,
-        handler: () => {
-          router.push('/app/dashboard?payment=success')
+        handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+          // Verify payment signature before redirecting
+          const verifyRes = await fetch('/api/payments/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(response),
+            credentials: 'include',
+          })
+          if (verifyRes.ok) {
+            router.push('/app/dashboard?payment=success')
+          } else {
+            setError('Payment verification failed. Please contact support.')
+            setLoading(false)
+          }
         },
         prefill: {},
         theme: { color: '#059669' },
@@ -59,7 +79,6 @@ export default function BuyFullPage() {
 
   return (
     <div className="max-w-lg mx-auto">
-      {/* ... UI as needed ... */}
       {error && (
         <div className="bg-red-100 border border-red-300 px-4 py-2 rounded mb-3 text-red-700">
           {error}

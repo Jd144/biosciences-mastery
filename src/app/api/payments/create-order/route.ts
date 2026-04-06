@@ -5,11 +5,6 @@ import { PRICES } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   try {
-    // ✅ Debug env variables
-    console.log("RAZORPAY_KEY_ID", process.env.RAZORPAY_KEY_ID)
-    console.log("RAZORPAY_KEY_SECRET", process.env.RAZORPAY_KEY_SECRET)
-
-    // ✅ Validate Razorpay envs
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
       return NextResponse.json(
         { error: 'Razorpay env variables missing' },
@@ -17,7 +12,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ✅ Razorpay instance
     const razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID!,
       key_secret: process.env.RAZORPAY_KEY_SECRET!,

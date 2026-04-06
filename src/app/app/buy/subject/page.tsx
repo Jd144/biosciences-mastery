@@ -71,10 +71,14 @@ function BuySubjectContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planType: 'SINGLE_SUBJECT', subjectSlug: selectedSubject }),
+        credentials: 'include',
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
 
+      if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+        throw new Error('Payment gateway is not configured. Please contact support.')
+      }
       const rzp = new window.Razorpay({
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: data.amount,
@@ -82,8 +86,19 @@ function BuySubjectContent() {
         name: 'BioSciences Mastery',
         description: `${selectedSubjectObj?.name} — Lifetime Access`,
         order_id: data.orderId,
-        handler: () => {
-          router.push('/app/dashboard?payment=success')
+        handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+          const verifyRes = await fetch('/api/payments/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(response),
+            credentials: 'include',
+          })
+          if (verifyRes.ok) {
+            router.push('/app/dashboard?payment=success')
+          } else {
+            setError('Payment verification failed. Please contact support.')
+            setLoading(false)
+          }
         },
         theme: { color: '#059669' },
         modal: { ondismiss: () => setLoading(false) },

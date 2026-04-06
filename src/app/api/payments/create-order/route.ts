@@ -139,16 +139,13 @@ export async function POST(request: NextRequest) {
       currency: 'INR',
       dbOrderId: order.id,
     })
-  } catch (error: any) {
-    // Yeh improved catch block hai, yahi lagao
-    console.error('Create order error:', error)
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error?.message || JSON.stringify(error) || "Unknown error",
-        stack: process.env.NODE_ENV === "development" ? error?.stack : undefined
-      },
-      { status: 500 }
-    )
+  catch (error: any) {
+  console.error('Create order error:', error)
+  return NextResponse.json({
+    ok: false,
+    error: error?.message || JSON.stringify(error) || "Unknown error",
+    stack: process.env.NODE_ENV === "development" ? error?.stack : undefined
+  }, { status: 500 })
+}
   }
 }

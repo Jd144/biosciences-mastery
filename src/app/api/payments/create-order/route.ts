@@ -4,10 +4,16 @@ import { createClient } from '@/lib/supabase/server'
 import { PRICES } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
+  // ✅ For debugging: Always log env on server!
+  console.log("RAZORPAY_KEY_ID", process.env.RAZORPAY_KEY_ID)
+  console.log("RAZORPAY_KEY_SECRET", process.env.RAZORPAY_KEY_SECRET)
+
+  // ✅ Razorpay instance
   const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID!,
     key_secret: process.env.RAZORPAY_KEY_SECRET!,
   })
+
   try {
     const supabase = await createClient()
     const {
@@ -139,13 +145,13 @@ export async function POST(request: NextRequest) {
       currency: 'INR',
       dbOrderId: order.id,
     })
-  catch (error: any) {
-  console.error('Create order error:', error)
-  return NextResponse.json({
-    ok: false,
-    error: error?.message || JSON.stringify(error) || "Unknown error",
-    stack: process.env.NODE_ENV === "development" ? error?.stack : undefined
-  }, { status: 500 })
-}
+  } catch (error: any) {
+    // ✅ Improved catch (always gives JSON!)
+    console.error('Create order error:', error)
+    return NextResponse.json({
+      ok: false,
+      error: error?.message || JSON.stringify(error) || "Unknown error",
+      stack: process.env.NODE_ENV === "development" ? error?.stack : undefined
+    }, { status: 500 })
   }
 }

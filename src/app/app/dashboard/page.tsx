@@ -4,29 +4,54 @@ import Link from 'next/link'
 import { BookOpen, TrendingUp, ShoppingBag, CheckCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 
+/** Shape returned by the entitlements join query */
+type EntitlementRow = {
+  id: string
+  type: string
+  subject_id: string | null
+  // Supabase returns FK joins as arrays; we take the first element when rendering
+  subjects: { name: string; slug: string }[] | null
+}
+
+/** Shape returned by the orders join query */
+type OrderRow = {
+  id: string
+  plan_type: string
+  amount_paise: number
+  created_at: string
+  // Supabase returns FK joins as arrays; we take the first element when rendering
+  subjects: { name: string }[] | null
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
 
-  // Fetch entitlements
-  const { data: entitlements } = await supabase
+  // Fetch entitlements – errors are non-fatal; fall back to empty state
+  const { data: entitlementsRaw } = await supabase
     .from('entitlements')
-    .select('*, subjects(name, slug)')
+    .select('id, type, subject_id, subjects(name, slug)')
     .eq('user_id', user.id)
 
-  const hasFull = entitlements?.some((e) => e.type === 'FULL') ?? false
-  const ownedSubjects = entitlements?.filter((e) => e.type === 'SUBJECT') ?? []
+  const entitlements = (entitlementsRaw ?? []) as EntitlementRow[]
+  const hasFull = entitlements.some((e) => e.type === 'FULL')
+  const ownedSubjects = entitlements.filter((e) => e.type === 'SUBJECT')
 
-  // Fetch recent orders
-  const { data: orders } = await supabase
+  // Fetch recent paid orders – errors are non-fatal
+  const { data: ordersRaw } = await supabase
     .from('orders')
-    .select('*, subjects(name)')
+    .select('id, plan_type, amount_paise, created_at, subjects(name)')
     .eq('user_id', user.id)
     .eq('status', 'paid')
     .order('created_at', { ascending: false })
     .limit(5)
+
+  const orders = (ordersRaw ?? []) as OrderRow[]
 
   const displayName = user.email ?? user.phone ?? 'Student'
 
@@ -34,9 +59,7 @@ export default async function DashboardPage() {
     <div>
       {/* Welcome */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Welcome back! 👋
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900">Welcome back! 👋</h1>
         <p className="text-gray-500 mt-1">{displayName}</p>
       </div>
 
@@ -64,7 +87,7 @@ export default async function DashboardPage() {
             <div>
               <p className="text-sm text-gray-500">Access Level</p>
               <p className="text-2xl font-bold text-gray-900">
-                {hasFull ? 'Full Course' : 'Partial'}
+                {hasFull ? 'Full Course' : ownedSubjects.length > 0 ? 'Partial' : 'Free'}
               </p>
             </div>
           </CardContent>
@@ -77,18 +100,20 @@ export default async function DashboardPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Total Orders</p>
-              <p className="text-2xl font-bold text-gray-900">{orders?.length ?? 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Access Banner */}
+      {/* Upsell Banner */}
       {!hasFull && (
         <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-6 text-white mb-8 flex items-center justify-between flex-wrap gap-4">
           <div>
             <h3 className="font-bold text-lg mb-1">Unlock Full Course</h3>
-            <p className="text-emerald-100 text-sm">Get all 10 subjects for just ₹999 — lifetime access</p>
+            <p className="text-emerald-100 text-sm">
+              Get all 10 subjects for just ₹999 — lifetime access
+            </p>
           </div>
           <Link
             href="/app/buy/full"
@@ -115,18 +140,23 @@ export default async function DashboardPage() {
           </div>
         ) : ownedSubjects.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ownedSubjects.map((e) => (
-              <Link
-                key={e.id}
-                href={`/app/subjects/${e.subjects?.slug}`}
-                className="bg-white border border-gray-100 rounded-xl p-4 hover:border-emerald-200 hover:shadow-sm transition-all"
-              >
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500" />
-                  <span className="font-medium text-gray-800 text-sm">{e.subjects?.name}</span>
-                </div>
-              </Link>
-            ))}
+            {ownedSubjects.map((e) => {
+              const subject = e.subjects?.[0] ?? null
+              return (
+                <Link
+                  key={e.id}
+                  href={subject?.slug ? `/app/subjects/${subject.slug}` : '/app/subjects'}
+                  className="bg-white border border-gray-100 rounded-xl p-4 hover:border-emerald-200 hover:shadow-sm transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-500" />
+                    <span className="font-medium text-gray-800 text-sm">
+                      {subject?.name ?? 'Subject'}
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         ) : (
           <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-8 text-center">
@@ -142,32 +172,42 @@ export default async function DashboardPage() {
       </div>
 
       {/* Recent Orders */}
-      {orders && orders.length > 0 && (
+      {orders.length > 0 && (
         <div>
           <h2 className="text-lg font-bold text-gray-900 mb-4">Recent Purchases</h2>
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            {orders.map((order, i) => (
-              <div
-                key={order.id}
-                className={`flex items-center justify-between px-6 py-4 ${i !== 0 ? 'border-t border-gray-100' : ''}`}
-              >
-                <div>
-                  <p className="font-medium text-gray-800 text-sm">
-                    {order.plan_type === 'FULL' ? 'Full Course' : order.subjects?.name}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {new Date(order.created_at).toLocaleDateString('en-IN')}
-                  </p>
+            {orders.map((order, i) => {
+              const subject = order.subjects?.[0] ?? null
+              return (
+                <div
+                  key={order.id}
+                  className={`flex items-center justify-between px-6 py-4 ${
+                    i !== 0 ? 'border-t border-gray-100' : ''
+                  }`}
+                >
+                  <div>
+                    <p className="font-medium text-gray-800 text-sm">
+                      {order.plan_type === 'FULL' ? 'Full Course' : (subject?.name ?? 'Subject')}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date(order.created_at).toLocaleDateString('en-IN')}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900">
+                      ₹{(order.amount_paise / 100).toFixed(0)}
+                    </p>
+                    <span className="inline-block text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full mt-0.5">
+                      Paid
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900">₹{(order.amount_paise / 100).toFixed(0)}</p>
-                  <span className="inline-block text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full mt-0.5">Paid</span>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
     </div>
   )
 }
+

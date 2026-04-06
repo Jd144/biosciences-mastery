@@ -4,17 +4,25 @@ import { createClient } from '@/lib/supabase/server'
 import { PRICES } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
-  // ✅ For debugging: Always log env on server!
-  console.log("RAZORPAY_KEY_ID", process.env.RAZORPAY_KEY_ID)
-  console.log("RAZORPAY_KEY_SECRET", process.env.RAZORPAY_KEY_SECRET)
-
-  // ✅ Razorpay instance
-  const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
-  })
-
   try {
+    // ✅ Debug env variables
+    console.log("RAZORPAY_KEY_ID", process.env.RAZORPAY_KEY_ID)
+    console.log("RAZORPAY_KEY_SECRET", process.env.RAZORPAY_KEY_SECRET)
+
+    // ✅ Validate Razorpay envs
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return NextResponse.json(
+        { error: 'Razorpay env variables missing' },
+        { status: 500 }
+      )
+    }
+
+    // ✅ Razorpay instance
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID!,
+      key_secret: process.env.RAZORPAY_KEY_SECRET!,
+    })
+
     const supabase = await createClient()
     const {
       data: { user },
@@ -24,7 +32,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
+    let body: any
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 })
+    }
     const { planType, subjectSlug } = body
 
     if (!planType || !['FULL', 'SINGLE_SUBJECT'].includes(planType)) {
@@ -108,17 +121,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Razorpay order
-    const receipt = `order_${user.id.slice(0, 8)}_${Date.now()}`
-    const razorpayOrder = await razorpay.orders.create({
-      amount: amountPaise,
-      currency: 'INR',
-      receipt,
-      notes: {
-        user_id: user.id,
-        plan_type: planType,
-        subject_id: subjectId ?? '',
-      },
-    })
+    let razorpayOrder
+    try {
+      const receipt = `order_${user.id.slice(0, 8)}_${Date.now()}`
+      razorpayOrder = await razorpay.orders.create({
+        amount: amountPaise,
+        currency: 'INR',
+        receipt,
+        notes: {
+          user_id: user.id,
+          plan_type: planType,
+          subject_id: subjectId ?? '',
+        },
+      })
+    } catch (razorErr: any) {
+      console.error('Razorpay error:', razorErr)
+      return NextResponse.json({ error: 'Failed to create Razorpay order', detail: razorErr?.message }, { status: 500 })
+    }
 
     // Store order in DB
     const { data: order, error: orderError } = await supabase
@@ -134,7 +153,7 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (orderError) {
+    if (orderError || !order) {
       console.error('Order insert error:', orderError)
       return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
     }
@@ -146,7 +165,6 @@ export async function POST(request: NextRequest) {
       dbOrderId: order.id,
     })
   } catch (error: any) {
-    // ✅ Improved catch (always gives JSON!)
     console.error('Create order error:', error)
     return NextResponse.json({
       ok: false,

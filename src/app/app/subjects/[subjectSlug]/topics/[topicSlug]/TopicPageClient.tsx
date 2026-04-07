@@ -483,7 +483,7 @@ export default function TopicPageClient({
 }: Props) {
   const visibleTabs = hasAccess
     ? ALL_TABS
-    : ALL_TABS.filter((t) => t.free || hasAccess)
+    : ALL_TABS.filter((t) => t.free)
 
   const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'overview')
 

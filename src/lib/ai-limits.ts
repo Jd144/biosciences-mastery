@@ -7,21 +7,17 @@ import { getServiceClient } from '@/lib/admin'
 export const FREE_AI_LIMIT = parseInt(process.env.FREE_AI_REQUESTS_PER_DAY ?? '5', 10)
 export const PREMIUM_AI_LIMIT = parseInt(process.env.PREMIUM_AI_REQUESTS_PER_DAY ?? '50', 10)
 
-/**
- * Check whether a user has an entitlement (FULL or SUBJECT-level).
- *
- * Uses the anon Supabase client that was already authenticated via the user's
- * session cookies — this ensures we only see entitlements for the calling user
- * (RLS enforces this).
- */
 export function getAiLimit(hasPremium: boolean): number {
   return hasPremium ? PREMIUM_AI_LIMIT : FREE_AI_LIMIT
 }
 
 /**
- * Returns the user's current daily request count for a given endpoint and the
- * configured limit. Uses the service-role client to bypass RLS so that
- * upserts work correctly even before the first row exists.
+ * Atomically increments the daily AI usage counter for a user and returns
+ * whether the request is allowed within the tier limit.
+ *
+ * Uses the `increment_ai_usage` Postgres function (SECURITY DEFINER) so the
+ * fetch-and-increment happens in a single SQL statement, preventing races
+ * where two concurrent requests could both slip through the limit check.
  *
  * @param userId   Authenticated user id
  * @param endpoint 'chat' | 'notes'
@@ -34,39 +30,24 @@ export async function checkAndIncrementAiUsage(
   limit: number
 ): Promise<{ allowed: boolean; used: number; limit: number }> {
   const serviceClient = getServiceClient()
-  const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
 
-  // Fetch current count
-  const { data: existing } = await serviceClient
-    .from('ai_usage_log')
-    .select('count')
-    .eq('user_id', userId)
-    .eq('endpoint', endpoint)
-    .eq('date', today)
-    .maybeSingle()
-
-  const currentCount = existing?.count ?? 0
-
-  if (currentCount >= limit) {
-    return { allowed: false, used: currentCount, limit }
-  }
-
-  // Increment atomically via upsert
-  const { error } = await serviceClient.from('ai_usage_log').upsert(
-    {
-      user_id: userId,
-      endpoint,
-      date: today,
-      count: currentCount + 1,
-    },
-    { onConflict: 'user_id,endpoint,date' }
-  )
+  const { data, error } = await serviceClient.rpc('increment_ai_usage', {
+    p_user_id: userId,
+    p_endpoint: endpoint,
+    p_limit: limit,
+  })
 
   if (error) {
-    console.error('ai_usage_log upsert error:', error)
-    // Allow the request rather than blocking on a DB error
-    return { allowed: true, used: currentCount + 1, limit }
+    console.error('increment_ai_usage RPC error:', error)
+    // Allow the request rather than blocking on a DB error so users aren't
+    // penalised for infrastructure issues.
+    return { allowed: true, used: 0, limit }
   }
 
-  return { allowed: true, used: currentCount + 1, limit }
+  const row = Array.isArray(data) ? data[0] : data
+  return {
+    allowed: row.allowed as boolean,
+    used: row.used as number,
+    limit: row.daily_limit as number,
+  }
 }

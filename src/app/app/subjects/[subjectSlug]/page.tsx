@@ -117,7 +117,12 @@ export default async function SubjectDetailPage({
                 Study <ChevronRight className="w-4 h-4" />
               </Link>
             ) : (
-              <Lock className="w-4 h-4 text-gray-300" />
+              <Link
+                href={`/app/subjects/${subjectSlug}/topics/${topic.slug}`}
+                className="text-amber-600 hover:text-amber-700 text-xs font-medium flex items-center gap-1 border border-amber-200 px-2 py-1 rounded-md hover:bg-amber-50"
+              >
+                <Lock className="w-3 h-3" /> Preview
+              </Link>
             )}
           </div>
         ))}

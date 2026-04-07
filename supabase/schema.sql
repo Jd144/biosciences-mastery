@@ -158,7 +158,19 @@ CREATE TABLE IF NOT EXISTS public.ai_notes_cache (
 );
 
 -- ============================================================
--- 12. ADMIN ALLOWLIST
+-- 12. AI USAGE LOG (for free-tier rate limiting)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.ai_usage_log (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint   TEXT NOT NULL CHECK (endpoint IN ('chat', 'notes')),
+  date       DATE NOT NULL DEFAULT CURRENT_DATE,
+  count      INT NOT NULL DEFAULT 1,
+  UNIQUE (user_id, endpoint, date)
+);
+
+-- ============================================================
+-- 13. ADMIN ALLOWLIST
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.admin_allowlist (
   id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -183,6 +195,7 @@ ALTER TABLE public.quiz_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.entitlements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_notes_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_usage_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_allowlist ENABLE ROW LEVEL SECURITY;
 
 -- Public read for catalog
@@ -208,6 +221,9 @@ CREATE POLICY "Users can read own entitlements" ON public.entitlements FOR SELEC
 CREATE POLICY "Users can read own ai_notes_cache" ON public.ai_notes_cache FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users can upsert own ai_notes_cache" ON public.ai_notes_cache FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+-- AI usage log: users manage only their own
+CREATE POLICY "Users can manage own ai_usage_log" ON public.ai_usage_log FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 -- Admin allowlist: only service role
 CREATE POLICY "Service role can manage admin_allowlist" ON public.admin_allowlist FOR ALL USING (false);
 
@@ -223,3 +239,4 @@ CREATE INDEX IF NOT EXISTS idx_quiz_questions_quiz_id ON public.quiz_questions(q
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON public.orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_entitlements_user_id ON public.entitlements(user_id);
 CREATE INDEX IF NOT EXISTS idx_ai_notes_cache_user_topic ON public.ai_notes_cache(user_id, topic_id);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_log_user_date ON public.ai_usage_log(user_id, date);

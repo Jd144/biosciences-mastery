@@ -141,7 +141,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const finalAmountPaise = Math.max(amountPaise - discountPaise, 100)
+    // Razorpay minimum order amount is ₹1 (100 paise)
+    const RAZORPAY_MIN_PAISE = 100
+    const finalAmountPaise = Math.max(amountPaise - discountPaise, RAZORPAY_MIN_PAISE)
 
     // Create Razorpay order
     let razorpayOrder

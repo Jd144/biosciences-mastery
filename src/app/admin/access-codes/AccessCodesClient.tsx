@@ -52,7 +52,7 @@ export default function AccessCodesClient({ initialCodes }: Props) {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this access code? The user will lose access.')) return
+    if (!confirm('Delete this access code? Note: users who already verified will retain their access.')) return
     try {
       const res = await fetch(`/api/admin/access-codes?id=${id}`, { method: 'DELETE' })
       if (res.ok) setCodes(codes.filter((c) => c.id !== id))

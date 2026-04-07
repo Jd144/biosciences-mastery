@@ -69,7 +69,7 @@ export default function VerifyCodePage() {
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === 'Enter' && code.trim() && handleVerify()}
             placeholder="XXXX-XXXX-XXXX"
-            className="w-full border border-gray-300 rounded-lg px-3 py-3 text-sm text-center text-lg tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full border border-gray-300 rounded-lg px-3 py-3 text-lg text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { topicId, subjectId, messages, language = 'en' } = body
+    const { topicId, subjectId: _subjectId, messages, language = 'en' } = body
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 })
@@ -47,9 +47,6 @@ Provide clear, accurate, exam-focused answers.`
         : ' Respond in English.'
 
     systemContext += langInstruction
-
-    // Suppress unused variable warning
-    void subjectId
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',

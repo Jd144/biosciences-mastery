@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getServiceClient } from '@/lib/admin'
+import { FREE_AI_LIMIT, checkAndIncrementAiUsage } from '@/lib/ai-limits'
 import OpenAI from 'openai'
 
 export async function POST(request: NextRequest) {
@@ -12,6 +14,32 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check premium status (FULL entitlement = unlimited AI)
+    const serviceClient = getServiceClient()
+    const { data: fullEnt } = await serviceClient
+      .from('entitlements')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('type', 'FULL')
+      .maybeSingle()
+    const hasPremium = !!fullEnt
+
+    // Rate-limit free users
+    if (!hasPremium) {
+      const { allowed, used, limit } = await checkAndIncrementAiUsage(user.id, 'chat', FREE_AI_LIMIT)
+      if (!allowed) {
+        return NextResponse.json(
+          {
+            error: `Daily AI limit reached (${used}/${limit}). Upgrade to Premium for unlimited access.`,
+            limitReached: true,
+            used,
+            limit,
+          },
+          { status: 429 }
+        )
+      }
     }
 
     const body = await request.json()

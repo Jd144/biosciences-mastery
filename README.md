@@ -203,3 +203,36 @@ User clicks Buy
 - **Cause**: Old `src/middleware.ts` without a function export exists.
 - **Fix**: Ensure `src/middleware.ts` does not exist. Use `src/proxy.ts` instead.
 
+---
+
+## GitHub PR & Copilot Task Link — Kahan Milega?
+
+> **Hindi note:** "Link kahan milega?" — Neeche explanation hai.
+
+### GitHub Pull Request (PR) link kahan milta hai?
+
+1. **Repository page** par jaao: `https://github.com/Jd144/biosciences-mastery`
+2. Top navigation bar me **"Pull requests"** tab pe click karo.
+3. Wahan sari open/closed PR ki list dikhegi.
+4. Apni PR pe click karo — URL hi uska link hai, e.g.:  
+   `https://github.com/Jd144/biosciences-mastery/pull/5`
+
+### Copilot Task link kahan milta hai?
+
+1. Same repository page par jaao.
+2. **"Pull requests"** tab → wahan Copilot ke khayal se banaya hua PR milega (title me "copilot/" prefix hoga).
+3. Ya phir **GitHub Notifications** (bell icon, top-right) me check karo — har naya PR/task ka notification aata hai.
+4. Direct link format:  
+   `https://github.com/Jd144/biosciences-mastery/pull/<PR_NUMBER>`
+
+### ⚠️ Razorpay Link vs GitHub PR Link — Kya Farq Hai?
+
+| | Razorpay Payment Link | GitHub PR Link |
+|---|---|---|
+| **Kya hai?** | Customer ke liye payment page | Developer ke liye code review page |
+| **Kaise dikhta hai?** | `https://rzp.io/...` ya `https://razorpay.com/payment-link/...` | `https://github.com/Jd144/biosciences-mastery/pull/5` |
+| **Kiske liye?** | Sirf payment karne ke liye | Code changes dekhne/review karne ke liye |
+| **Kahan milta hai?** | Razorpay Dashboard → Payment Links | GitHub → Pull Requests tab |
+
+> **Summary:** Razorpay link = apne customers ko payment ke liye dena. GitHub PR link = apne code changes track karna / Copilot tasks dekhna. Dono bilkul alag cheezein hain.
+

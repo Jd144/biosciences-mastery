@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import TopicPageClient from './TopicPageClient'
+import type { QuizQuestion } from '@/types'
 
 const FREE_QUIZ_QUESTION_LIMIT = 10
 const PREMIUM_QUIZ_QUESTION_LIMIT = 50
@@ -60,7 +61,6 @@ export default async function TopicPage({
   const rawQuizzes = quizzesRes.data ?? []
 
   // Flatten questions across quizzes, cap at limit, then redistribute back
-  type QuizQuestion = { id: string; question_no: number; question: string; options: { A: string; B: string; C: string; D: string }; answer: string; explanation: string | null }
   const limitedQuizzes = rawQuizzes.reduce<{ quizzes: typeof rawQuizzes; remaining: number }>(
     (acc, quiz) => {
       const allQuestions: QuizQuestion[] = (quiz.quiz_questions as QuizQuestion[] | null) ?? []

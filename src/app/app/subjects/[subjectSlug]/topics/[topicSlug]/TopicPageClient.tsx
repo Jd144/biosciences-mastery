@@ -174,7 +174,7 @@ function QuizComponent({ quiz }: { quiz: Props['quizzes'][0] }) {
   )
 }
 
-function AINotesTab({ topicId, isPremium, subjectSlug }: { topicId: string; subjectId: string; isPremium: boolean; subjectSlug: string }) {
+function AINotesTab({ topicId, isPremium, subjectSlug }: { topicId: string; isPremium: boolean; subjectSlug: string }) {
   const [notes, setNotes] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [language, setLanguage] = useState<'en' | 'hi' | 'hinglish'>('en')
@@ -564,7 +564,7 @@ export default function TopicPageClient({ subject, topic, isPremium, content, ta
 
         {/* AI Notes */}
         <TabPanel id="ai-notes" activeTab={activeTab}>
-          <AINotesTab topicId={topic.id} subjectId={subject.id} isPremium={isPremium} subjectSlug={subject.slug} />
+          <AINotesTab topicId={topic.id} isPremium={isPremium} subjectSlug={subject.slug} />
         </TabPanel>
 
         {/* Doubt Chat */}

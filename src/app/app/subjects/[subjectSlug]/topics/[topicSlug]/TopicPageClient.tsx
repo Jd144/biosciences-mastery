@@ -12,6 +12,9 @@ interface Props {
   subject: { id: string; slug: string; name: string }
   topic: { id: string; slug: string; title: string }
   userId: string
+  isPremium: boolean
+  aiUsedToday: number
+  aiDailyLimit: number
   content: Array<{ language: string; short_notes_md: string | null; detailed_notes_md: string | null; flowchart_mermaid: string | null }>
   tables: Array<{ id: string; title: string; table_json: { headers: string[]; rows: string[][] }; language: string }>
   diagrams: Array<{ id: string; image_url: string; caption: string | null; alt_text: string | null }>
@@ -158,12 +161,16 @@ function QuizComponent({ quiz }: { quiz: Props['quizzes'][0] }) {
   )
 }
 
-function AINotesTab({ topicId, subjectId }: { topicId: string; subjectId: string }) {
+function AINotesTab({ topicId, subjectId, isPremium, aiUsedToday, aiDailyLimit }: { topicId: string; subjectId: string; isPremium: boolean; aiUsedToday: number; aiDailyLimit: number }) {
   const [notes, setNotes] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [language, setLanguage] = useState<'en' | 'hi' | 'hinglish'>('en')
   const [cached, setCached] = useState(false)
   const [error, setError] = useState('')
+  const [usedToday, setUsedToday] = useState(aiUsedToday)
+
+  const aiLimitReached = !isPremium && usedToday >= aiDailyLimit
+  const aiRemaining = isPremium ? null : aiDailyLimit - usedToday
 
   const generate = async (regenerate = false) => {
     setLoading(true)
@@ -178,6 +185,10 @@ function AINotesTab({ topicId, subjectId }: { topicId: string; subjectId: string
       if (!res.ok) throw new Error(data.error)
       setNotes(data.content)
       setCached(data.cached)
+      // Increment local count if not a cache hit and not premium
+      if (!isPremium && !data.cached) {
+        setUsedToday((prev) => prev + 1)
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to generate notes')
     } finally {
@@ -187,6 +198,24 @@ function AINotesTab({ topicId, subjectId }: { topicId: string; subjectId: string
 
   return (
     <div>
+      {/* AI usage limit banner */}
+      {!isPremium && (
+        <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg mb-4 ${aiLimitReached ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-amber-50 border border-amber-200 text-amber-700'}`}>
+          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+          {aiLimitReached ? (
+            <span>Daily AI limit reached ({aiDailyLimit}/{aiDailyLimit} used). Resets at midnight UTC. <Link href="/app/buy/full" className="underline font-semibold">Upgrade to Premium</Link> for unlimited AI access.</span>
+          ) : (
+            <span>Free plan: <strong>{aiRemaining} AI request{aiRemaining !== 1 ? 's' : ''}</strong> remaining today (resets midnight UTC). <Link href="/app/buy/full" className="underline font-semibold">Upgrade to Premium</Link> for unlimited access.</span>
+          )}
+        </div>
+      )}
+      {isPremium && (
+        <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg mb-4 bg-emerald-50 border border-emerald-200 text-emerald-700">
+          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+          <span>Premium: Unlimited AI requests</span>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <select
           value={language}
@@ -197,12 +226,12 @@ function AINotesTab({ topicId, subjectId }: { topicId: string; subjectId: string
           <option value="hi">Hindi</option>
           <option value="hinglish">Hinglish</option>
         </select>
-        <Button onClick={() => generate(false)} loading={loading} size="sm">
+        <Button onClick={() => generate(false)} loading={loading} size="sm" disabled={aiLimitReached}>
           <Sparkles className="w-4 h-4 mr-1.5" />
           {notes ? 'Load Notes' : 'Generate AI Notes'}
         </Button>
         {notes && (
-          <Button onClick={() => generate(true)} loading={loading} size="sm" variant="outline">
+          <Button onClick={() => generate(true)} loading={loading} size="sm" variant="outline" disabled={aiLimitReached}>
             <RefreshCw className="w-4 h-4 mr-1.5" />
             Regenerate
           </Button>
@@ -234,14 +263,18 @@ interface ChatMessage {
   content: string
 }
 
-function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: string }) {
+function DoubtChatTab({ topicId, subjectId, isPremium, aiUsedToday, aiDailyLimit }: { topicId: string; subjectId: string; isPremium: boolean; aiUsedToday: number; aiDailyLimit: number }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [language, setLanguage] = useState<'en' | 'hi' | 'hinglish'>('en')
+  const [usedToday, setUsedToday] = useState(aiUsedToday)
+
+  const aiLimitReached = !isPremium && usedToday >= aiDailyLimit
+  const aiRemaining = isPremium ? null : aiDailyLimit - usedToday
 
   const sendMessage = async () => {
-    if (!input.trim()) return
+    if (!input.trim() || aiLimitReached) return
     const userMsg: ChatMessage = { role: 'user', content: input }
     const newMessages = [...messages, userMsg]
     setMessages(newMessages)
@@ -262,6 +295,10 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setMessages([...newMessages, { role: 'assistant', content: data.reply }])
+      // Increment local count if not premium
+      if (!isPremium) {
+        setUsedToday((prev) => prev + 1)
+      }
     } catch (err: unknown) {
       setMessages([...newMessages, { role: 'assistant', content: `Error: ${err instanceof Error ? err.message : 'Failed to get response'}` }])
     } finally {
@@ -277,15 +314,25 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
           <MessageCircle className="w-4 h-4 text-emerald-600" />
           <span className="text-sm font-medium text-gray-700">AI Doubt Solver</span>
         </div>
-        <select
-          value={language}
-          onChange={(e) => setLanguage(e.target.value as typeof language)}
-          className="border border-gray-200 rounded-md px-2 py-1 text-xs focus:outline-none"
-        >
-          <option value="en">EN</option>
-          <option value="hi">HI</option>
-          <option value="hinglish">Hinglish</option>
-        </select>
+        <div className="flex items-center gap-2">
+          {!isPremium && (
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${aiLimitReached ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>
+              {aiLimitReached ? 'Limit reached' : `${aiRemaining} left today`}
+            </span>
+          )}
+          {isPremium && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Unlimited</span>
+          )}
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as typeof language)}
+            className="border border-gray-200 rounded-md px-2 py-1 text-xs focus:outline-none"
+          >
+            <option value="en">EN</option>
+            <option value="hi">HI</option>
+            <option value="hinglish">Hinglish</option>
+          </select>
+        </div>
       </div>
 
       {/* Messages */}
@@ -294,6 +341,9 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
           <div className="text-center py-8 text-gray-400">
             <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
             <p className="text-sm">Ask any doubt about this topic!</p>
+            {!isPremium && !aiLimitReached && (
+              <p className="text-xs mt-1 text-amber-600">{aiRemaining} free AI request{aiRemaining !== 1 ? 's' : ''} remaining today</p>
+            )}
           </div>
         )}
         {messages.map((msg, i) => (
@@ -322,28 +372,40 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
         )}
       </div>
 
+      {/* Limit reached notice */}
+      {aiLimitReached && (
+        <div className="border-t border-red-100 px-4 py-3 bg-red-50 text-xs text-red-700 text-center">
+          Daily AI limit reached ({aiDailyLimit}/{aiDailyLimit}). Resets at midnight UTC. <Link href="/app/buy/full" className="underline font-semibold">Upgrade to Premium</Link> for unlimited access.
+        </div>
+      )}
+
       {/* Input */}
-      <div className="border-t border-gray-100 p-3 flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-          placeholder="Ask your doubt..."
-          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        />
-        <Button onClick={sendMessage} disabled={!input.trim() || loading} size="sm">
-          <Send className="w-4 h-4" />
-        </Button>
-      </div>
+      {!aiLimitReached && (
+        <div className="border-t border-gray-100 p-3 flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+            placeholder="Ask your doubt..."
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          <Button onClick={sendMessage} disabled={!input.trim() || loading} size="sm">
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
 
-export default function TopicPageClient({ subject, topic, userId, content, tables, diagrams, pyqs, quizzes }: Props) {
+export default function TopicPageClient({ subject, topic, userId, isPremium, aiUsedToday, aiDailyLimit, content, tables, diagrams, pyqs, quizzes }: Props) {
   const [activeTab, setActiveTab] = useState('short-notes')
 
   const enContent = content.find((c) => c.language === 'en') ?? content[0]
   const enTables = tables.filter((t) => t.language === 'en')
+
+  // Count total quiz questions shown
+  const totalQuizQuestions = quizzes.reduce((sum, q) => sum + (q.quiz_questions?.length ?? 0), 0)
 
   return (
     <div>
@@ -466,7 +528,19 @@ export default function TopicPageClient({ subject, topic, userId, content, table
         <TabPanel id="quizzes" activeTab={activeTab}>
           {quizzes.length > 0 ? (
             <div>
-              <p className="text-sm text-gray-500 mb-6">{quizzes.length} quizzes available</p>
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-sm text-gray-500">{quizzes.length} quiz{quizzes.length !== 1 ? 'zes' : ''} · {totalQuizQuestions} questions</p>
+                {!isPremium && (
+                  <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">
+                    Free: {totalQuizQuestions} questions per topic · <Link href="/app/buy/full" className="underline font-semibold">Upgrade for 50</Link>
+                  </span>
+                )}
+                {isPremium && (
+                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                    Premium: up to 50 questions per topic
+                  </span>
+                )}
+              </div>
               {quizzes.map((quiz) => <QuizComponent key={quiz.id} quiz={quiz} />)}
             </div>
           ) : (
@@ -476,12 +550,12 @@ export default function TopicPageClient({ subject, topic, userId, content, table
 
         {/* AI Notes */}
         <TabPanel id="ai-notes" activeTab={activeTab}>
-          <AINotesTab topicId={topic.id} subjectId={subject.id} />
+          <AINotesTab topicId={topic.id} subjectId={subject.id} isPremium={isPremium} aiUsedToday={aiUsedToday} aiDailyLimit={aiDailyLimit} />
         </TabPanel>
 
         {/* Doubt Chat */}
         <TabPanel id="doubt-chat" activeTab={activeTab}>
-          <DoubtChatTab topicId={topic.id} subjectId={subject.id} />
+          <DoubtChatTab topicId={topic.id} subjectId={subject.id} isPremium={isPremium} aiUsedToday={aiUsedToday} aiDailyLimit={aiDailyLimit} />
         </TabPanel>
       </div>
     </div>

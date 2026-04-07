@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
 
 const PROMPT_VERSION = 'v1'
+const FREE_AI_DAILY_LIMIT = 5
 
 export async function POST(request: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
     }
 
-    // Check entitlement
+    // Check entitlement and determine tier
     const subjectId = topic.subject_id
     const { data: fullEnt } = await supabase
       .from('entitlements')
@@ -43,7 +44,9 @@ export async function POST(request: NextRequest) {
       .eq('type', 'FULL')
       .maybeSingle()
 
-    if (!fullEnt) {
+    const isPremium = Boolean(fullEnt)
+
+    if (!isPremium) {
       const { data: subjectEnt } = await supabase
         .from('entitlements')
         .select('id')
@@ -74,6 +77,31 @@ export async function POST(request: NextRequest) {
           cached: true,
           updatedAt: cached.updated_at,
         })
+      }
+    }
+
+    // Enforce daily AI limit for free (non-FULL) users before calling OpenAI
+    if (!isPremium) {
+      const todayStart = new Date()
+      todayStart.setUTCHours(0, 0, 0, 0)
+
+      const { count } = await supabase
+        .from('ai_usage_log')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', todayStart.toISOString())
+
+      const usedToday = count ?? 0
+      if (usedToday >= FREE_AI_DAILY_LIMIT) {
+        return NextResponse.json(
+          {
+            error: `Daily AI limit reached. Free users can make ${FREE_AI_DAILY_LIMIT} AI requests per day. Upgrade to Premium for unlimited access.`,
+            limitReached: true,
+            used: usedToday,
+            limit: FREE_AI_DAILY_LIMIT,
+          },
+          { status: 429 }
+        )
       }
     }
 
@@ -123,6 +151,14 @@ Keep it concise but comprehensive, suitable for GAT-B level examination.`
       },
       { onConflict: 'user_id,topic_id,language,prompt_version' }
     )
+
+    // Log successful AI usage for free users
+    if (!isPremium) {
+      await supabase.from('ai_usage_log').insert({
+        user_id: user.id,
+        request_type: 'notes',
+      })
+    }
 
     return NextResponse.json({
       content: contentMd,

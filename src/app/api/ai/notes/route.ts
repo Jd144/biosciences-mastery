@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getServiceClient } from '@/lib/admin'
+import { FREE_AI_LIMIT, checkAndIncrementAiUsage } from '@/lib/ai-limits'
 import OpenAI from 'openai'
 
 const PROMPT_VERSION = 'v1'
@@ -22,6 +24,16 @@ export async function POST(request: NextRequest) {
     if (!topicId) {
       return NextResponse.json({ error: 'topicId is required' }, { status: 400 })
     }
+
+    // Check premium status (FULL entitlement = unlimited AI)
+    const serviceClient = getServiceClient()
+    const { data: fullEnt } = await serviceClient
+      .from('entitlements')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('type', 'FULL')
+      .maybeSingle()
+    const hasPremium = !!fullEnt
 
     // Fetch topic + subject info
     const { data: topic, error: topicError } = await supabase
@@ -51,6 +63,22 @@ export async function POST(request: NextRequest) {
           cached: true,
           updatedAt: cached.updated_at,
         })
+      }
+    }
+
+    // Rate-limit free users before calling OpenAI
+    if (!hasPremium) {
+      const { allowed, used, limit } = await checkAndIncrementAiUsage(user.id, 'notes', FREE_AI_LIMIT)
+      if (!allowed) {
+        return NextResponse.json(
+          {
+            error: `Daily AI limit reached (${used}/${limit}). Upgrade to Premium for unlimited access.`,
+            limitReached: true,
+            used,
+            limit,
+          },
+          { status: 429 }
+        )
       }
     }
 

@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import TopicPageClient from './TopicPageClient'
 
+const FREE_QUIZ_QUESTIONS = parseInt(process.env.FREE_QUIZ_QUESTIONS ?? '10', 10)
+
 export default async function TopicPage({
   params,
 }: {
@@ -30,8 +32,19 @@ export default async function TopicPage({
 
   if (!topic) notFound()
 
-  // If user is authenticated (and passed middleware), they have full access
-  const hasAccess = !!user
+  // Check entitlement: user needs FULL or SUBJECT entitlement for this subject
+  let hasAccess = false
+  if (user) {
+    const { data: entitlements } = await supabase
+      .from('entitlements')
+      .select('type, subject_id')
+      .eq('user_id', user.id)
+    const hasFull = entitlements?.some((e) => e.type === 'FULL') ?? false
+    const hasSubject = entitlements?.some(
+      (e) => e.type === 'SUBJECT' && e.subject_id === subject.id
+    ) ?? false
+    hasAccess = hasFull || hasSubject
+  }
 
   // Fetch all content
   const { data: contentRows } = await supabase
@@ -63,7 +76,13 @@ export default async function TopicPage({
           .select('*, quiz_questions(*)')
           .eq('topic_id', topic.id)
           .eq('quiz_no', 1)
-          .limit(1),
+          .limit(1)
+          .then((res) => ({
+            data: res.data?.map((quiz) => ({
+              ...quiz,
+              quiz_questions: (quiz.quiz_questions ?? []).slice(0, FREE_QUIZ_QUESTIONS),
+            })) ?? null,
+          })),
       ]
 
   return (

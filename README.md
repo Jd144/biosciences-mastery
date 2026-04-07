@@ -6,26 +6,42 @@ India's GAT-B (Graduate Aptitude Test in Biotechnology) preparation platform bui
 
 - **10 GAT-B Subjects** with complete topic hierarchy
 - **Authentication**: Email + Password with Sign Up / Sign In / Forgot Password; Phone OTP + Email OTP as alternatives
-- **Access Code System**: One-time access code per user (admin-generated, email-assigned) for lifetime platform access
+- **Free vs Premium**: Free users get limited access; premium users get unlimited access
+- **Payments**: Razorpay integration — Full Course (₹999) or Single Subject (₹449)
 - **Content**: Notes (short/detailed), Flowcharts (Mermaid), Tables, Diagrams
 - **PYQs**: Official previous year questions, topic-tagged
 - **Quizzes**: 10 quizzes × 30 questions per topic
 - **AI Features** (OpenAI GPT-4o-mini):
   - AI Doubt Solver Chat (topic/subject context)
   - AI Notes Generator (click-to-generate, cached per user/topic/language)
-- **Admin Panel**: Manage subjects, topics, content, PYQs, quizzes, users, access codes
+- **Coupon System**: Admin-managed discount coupons (percent or flat)
+- **Admin Panel**: Manage subjects, topics, content, PYQs, quizzes, users, orders, coupons, analytics
+
+---
+
+## Free vs Premium
+
+| Feature | Free | Premium |
+|---------|------|---------|
+| Quiz questions | 10 per topic | 50 per topic |
+| AI requests | 5 per day | Unlimited |
+| Notes tabs | Overview + Quizzes + AI | All (short, detailed, flowcharts, tables, diagrams, PYQs) |
+| Content access | Preview only | Full |
+
+**Upgrade options:**
+- **Full Course** — ₹999, lifetime access to all 10 subjects
+- **Single Subject** — ₹449, lifetime access to one subject
 
 ---
 
 ## Access Flow
 
 1. User registers/logs in with email + password
-2. After first login, user is prompted to enter a **one-time access code**
-3. Admin generates the code in the admin panel and assigns it to the user's email
-4. Once the code is entered correctly, the user gets **lifetime full access** — no code needed again
-5. Admin account (`jdbanna34@gmail.com`) bypasses the code requirement and goes directly to the admin panel
-
-> **No payments required.** All content is completely free after code verification.
+2. Free tier: limited access (10 quiz questions/topic, 5 AI requests/day, overview only)
+3. Premium: purchase Full Course or individual subject via Razorpay
+4. After payment confirmation (webhook), entitlement is created and full access is granted
+5. Coupons can be applied at checkout for discounts
+6. Admin account (`jdbanna34@gmail.com`) gets direct admin panel access
 
 ---
 
@@ -33,10 +49,11 @@ India's GAT-B (Graduate Aptitude Test in Biotechnology) preparation platform bui
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend + API | Next.js 16 (App Router, TypeScript) |
+| Frontend + API | Next.js 15 (App Router, TypeScript) |
 | Styling | Tailwind CSS |
 | Auth | Supabase Auth (Email+Password & OTP) |
 | Database | Supabase Postgres |
+| Payments | Razorpay |
 | AI | OpenAI GPT-4o-mini |
 
 ---
@@ -60,54 +77,48 @@ cp .env.example .env.local
 Fill in your `.env.local`:
 
 ```env
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-OPENAI_API_KEY=sk-xxxxxxxxxxxxx
-NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Admin email (gets admin panel access without a code)
+# OpenAI
+OPENAI_API_KEY=sk-...
+
+# Razorpay
+RAZORPAY_KEY_ID=rzp_live_...
+RAZORPAY_KEY_SECRET=your-razorpay-secret
+RAZORPAY_WEBHOOK_SECRET=your-webhook-secret
+NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_live_...
+
+# Admin
 ADMIN_EMAIL=jdbanna34@gmail.com
+
+# Optional: override free/premium limits
+FREE_AI_REQUESTS_PER_DAY=5
+FREE_QUIZ_QUESTIONS=10
+PREMIUM_QUIZ_QUESTIONS=50
 ```
 
-> **Note**: Razorpay keys are no longer required. The payment system has been removed.
+### 3. Database Setup
 
-### 3. Supabase Setup
+Run all migrations in `supabase/migrations/` in order, or apply `supabase/schema.sql` to a fresh project.
 
-1. Create a project at https://supabase.com
-2. Go to **SQL Editor** and run `supabase/schema.sql`
-3. Run the migration: `supabase/migrations/20260407_access_codes.sql`
-4. Run `supabase/seed.sql` to populate subjects and topics
-5. Add yourself as admin (optional — or use the ADMIN_EMAIL env var):
-   ```sql
-   INSERT INTO public.admin_allowlist (user_id, email)
-   VALUES ('your-supabase-user-uuid', 'your@email.com');
-   ```
+```bash
+supabase db push
+```
 
-### 4. Admin Setup
-
-The admin account is automatically set via the `ADMIN_EMAIL` environment variable (default: `jdbanna34@gmail.com`).
-
-When logging in with the admin email:
-- You are redirected directly to `/admin` (no access code required)
-- You can generate access codes for students in **Admin → Access Codes**
-
-### 5. Generating Access Codes
-
-1. Log in with your admin email
-2. Go to **Admin Panel → Access Codes**
-3. Enter the student's email address and click **Generate Code**
-4. Share the generated code with the student (format: `XXXX-XXXX-XXXX`)
-5. The student enters the code once on the `/app/verify-code` page
-6. After verification, the student has lifetime access
-
-### 6. Run Dev Server
+### 4. Run Locally
 
 ```bash
 npm run dev
 ```
 
-Open http://localhost:3000
+### 5. Admin Access
+
+Login with the email set in `ADMIN_EMAIL` (default: `jdbanna34@gmail.com`). You will be redirected directly to `/admin`.
+
+For other admin accounts, add the user's UUID and email to `public.admin_allowlist`.
 
 ---
 
@@ -115,54 +126,60 @@ Open http://localhost:3000
 
 ```
 src/
-├── proxy.ts                            # Route protection (Next.js 16 Proxy)
 ├── app/
-│   ├── page.tsx                        # Landing page
-│   ├── login/page.tsx                  # Email+Password login (default) + OTP (alternative)
-│   ├── auth/reset/page.tsx             # Password reset
-│   ├── app/
-│   │   ├── dashboard/page.tsx          # User dashboard
-│   │   ├── verify-code/page.tsx        # One-time access code entry
-│   │   ├── subjects/                   # Subject catalog
-│   │   └── subjects/[slug]/topics/     # Topic pages (full access)
-│   ├── admin/                          # Admin panel
-│   │   └── access-codes/              # Access code management
-│   └── api/
-│       ├── access-codes/verify/        # Code verification API
-│       ├── ai/notes/                   # AI notes generator
-│       ├── ai/chat/                    # AI doubt solver
-│       └── admin/                      # Admin CRUD APIs
-
+│   ├── admin/          # Admin panel (subjects, topics, content, PYQs, quizzes, users, orders, coupons, analytics)
+│   ├── api/            # API routes
+│   │   ├── ai/         # AI chat + notes
+│   │   ├── payments/   # Razorpay order creation + webhook
+│   │   ├── coupons/    # Coupon validation
+│   │   ├── entitlements/
+│   │   ├── quiz/
+│   │   └── admin/      # Admin CRUD APIs
+│   ├── app/            # Authenticated user area
+│   │   ├── dashboard/
+│   │   ├── subjects/
+│   │   ├── buy/        # Purchase pages (full / single subject)
+│   │   └── ...
+│   ├── login/
+│   └── page.tsx        # Landing page
+├── components/
+├── lib/
+│   ├── admin.ts        # RBAC helpers
+│   ├── ai-limits.ts    # AI rate limiting
+│   ├── supabase/       # Supabase client helpers + middleware
+│   └── utils.ts        # PRICES constants + helpers
+├── types/
 supabase/
-├── schema.sql                          # DB schema + RLS policies
-├── seed.sql                            # 10 subjects + all topics
+├── schema.sql          # Full DB schema
+├── seed.sql            # Seed data
 └── migrations/
-    ├── 20240101_fix_rls_policies.sql
-    └── 20260407_access_codes.sql       # Access code tables
 ```
 
 ---
 
-## Route Protection
+## Razorpay Webhook Setup
 
-| Route | Access |
-|-------|--------|
-| `/login` | Public |
-| `/app/verify-code` | Authenticated (no code needed) |
-| `/app/*` | Authenticated + code verified (or admin) |
-| `/admin/*` | Admin only |
+1. In Razorpay dashboard → Webhooks → Add new webhook
+2. URL: `https://your-domain.vercel.app/api/payments/webhook`
+3. Events: `payment.captured`
+4. Set webhook secret and add to `RAZORPAY_WEBHOOK_SECRET` env var
 
 ---
 
-## Troubleshooting
+## Admin Panel
 
-### User stuck on verify-code page
-- Check that you've generated a code for the user's exact email in Admin → Access Codes
-- The code is case-insensitive; the email must match exactly
+Access at `/admin` (admin login required).
 
-### Admin panel not accessible
-- Ensure `ADMIN_EMAIL` env var matches the login email exactly
-- Or insert the user into `admin_allowlist` via Supabase SQL Editor
-
-### Build fails with "Middleware is missing expected function export"
-- Ensure `src/middleware.ts` does not exist. Use `src/proxy.ts` instead.
+| Section | Description |
+|---------|-------------|
+| Overview | Stats dashboard |
+| Subjects | Add/edit/delete subjects |
+| Topics | Add/edit/delete topics per subject |
+| Content | Add/edit notes, flowcharts per topic |
+| PYQs | Add/edit previous year questions |
+| Quizzes | Add/edit quiz questions |
+| Users | View users, ban/unban |
+| Orders | View all orders and revenue |
+| Coupons | Create/manage discount coupons |
+| Analytics | Usage statistics |
+| Settings | Site configuration |

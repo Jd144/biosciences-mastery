@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
 
+const FREE_AI_DAILY_LIMIT = 5
+
 export async function POST(request: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   try {
@@ -21,30 +23,55 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 })
     }
 
-    // Check entitlement
-    if (subjectId) {
-      const { data: fullEnt } = await supabase
+    // Check entitlement and determine tier
+    const { data: fullEnt } = await supabase
+      .from('entitlements')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('type', 'FULL')
+      .maybeSingle()
+
+    const isPremium = Boolean(fullEnt)
+
+    if (subjectId && !isPremium) {
+      const { data: subjectEnt } = await supabase
         .from('entitlements')
         .select('id')
         .eq('user_id', user.id)
-        .eq('type', 'FULL')
+        .eq('type', 'SUBJECT')
+        .eq('subject_id', subjectId)
         .maybeSingle()
 
-      if (!fullEnt) {
-        const { data: subjectEnt } = await supabase
-          .from('entitlements')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('type', 'SUBJECT')
-          .eq('subject_id', subjectId)
-          .maybeSingle()
+      if (!subjectEnt) {
+        return NextResponse.json(
+          { error: 'Access denied. Please purchase this subject.' },
+          { status: 403 }
+        )
+      }
+    }
 
-        if (!subjectEnt) {
-          return NextResponse.json(
-            { error: 'Access denied. Please purchase this subject.' },
-            { status: 403 }
-          )
-        }
+    // Enforce daily AI limit for free (non-FULL) users
+    if (!isPremium) {
+      const todayStart = new Date()
+      todayStart.setUTCHours(0, 0, 0, 0)
+
+      const { count } = await supabase
+        .from('ai_usage_log')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', todayStart.toISOString())
+
+      const usedToday = count ?? 0
+      if (usedToday >= FREE_AI_DAILY_LIMIT) {
+        return NextResponse.json(
+          {
+            error: `Daily AI limit reached. Free users can make ${FREE_AI_DAILY_LIMIT} AI requests per day. Upgrade to Premium for unlimited access.`,
+            limitReached: true,
+            used: usedToday,
+            limit: FREE_AI_DAILY_LIMIT,
+          },
+          { status: 429 }
+        )
       }
     }
 
@@ -86,6 +113,14 @@ Provide clear, accurate, exam-focused answers.`
     })
 
     const reply = completion.choices[0]?.message?.content ?? ''
+
+    // Log successful AI usage for free users
+    if (!isPremium) {
+      await supabase.from('ai_usage_log').insert({
+        user_id: user.id,
+        request_type: 'chat',
+      })
+    }
 
     return NextResponse.json({ reply })
   } catch (error) {

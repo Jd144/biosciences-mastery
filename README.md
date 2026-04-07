@@ -13,8 +13,9 @@ India's production-ready GAT-B (Graduate Aptitude Test in Biotechnology) prepara
 - **PYQs**: Official previous year questions, topic-tagged
 - **Quizzes**: 10 quizzes × 30 questions per topic
 - **AI Features** (OpenAI GPT-4o-mini):
-  - AI Doubt Solver Chat (topic/subject context)
-  - AI Notes Generator (click-to-generate, cached per user/topic/language)
+  - AI Doubt Solver Chat (topic/subject context) — Free: 5 req/day · Premium: unlimited
+  - AI Notes Generator (click-to-generate, cached per user/topic/language) — Free: 5 req/day · Premium: unlimited
+- **Quiz Limits**: Free: 10 questions per topic · Premium (Full Course): 50 questions per topic
 - **Admin Panel**: Manage subjects, topics, content, PYQs, quizzes, users, orders
 
 ---
@@ -143,12 +144,36 @@ supabase/
 ├── schema.sql                          # DB schema + RLS policies
 ├── seed.sql                            # 10 subjects + all topics
 └── migrations/
-    └── 20240101_fix_rls_policies.sql   # Idempotent RLS policy fixes
+    ├── 20240101_fix_rls_policies.sql   # Idempotent RLS policy fixes
+    └── 20240102_add_ai_usage_log.sql   # AI usage tracking table (rate limiting)
 ```
 
 ---
 
-## Access Control
+## Free vs Premium Limits
+
+| Feature | Free (Single Subject purchase) | Premium (Full Course purchase) |
+|---------|-------------------------------|-------------------------------|
+| AI Doubt Chat | **5 requests/day** (resets at midnight UTC) | **Unlimited** |
+| AI Notes Generator | **5 requests/day** (cached responses don't count) | **Unlimited** |
+| Quiz Questions | **10 questions per topic** | **50 questions per topic** |
+| Content (Notes, PYQs, Diagrams) | Full access | Full access |
+
+### Enforcement Details
+
+- **Server-side**: Rate limits are enforced in `/api/ai/chat` and `/api/ai/notes` API routes. Free users exceeding the 5/day AI limit receive HTTP 429.
+- **Quiz limits**: Applied in the topic page server component before sending data to the client. Premium users (FULL entitlement) see 50 questions; SUBJECT-only users see 10.
+- **UI**: Free users see a live "N requests remaining today" banner in the AI Notes and Doubt Chat tabs. Premium users see an "Unlimited" badge.
+- **Cache**: Loading previously cached AI notes does **not** count against the daily limit.
+
+### Database
+
+The `ai_usage_log` table tracks daily AI requests per user:
+- Run `supabase/migrations/20240102_add_ai_usage_log.sql` after the base schema.
+
+---
+
+
 
 | Entitlement | Access |
 |-------------|--------|
@@ -195,6 +220,7 @@ User clicks Buy
 
 ### RLS errors in Supabase logs
 - Run `supabase/migrations/20240101_fix_rls_policies.sql` in the Supabase SQL Editor to ensure correct policies.
+- Run `supabase/migrations/20240102_add_ai_usage_log.sql` to create the AI rate-limit tracking table.
 - Users must be authenticated to read `topic_content`, `topic_tables`, `topic_diagrams`, `quizzes`, and `quiz_questions`.
 - Only the authenticated user can read their own `entitlements`, `orders`, and `ai_notes_cache`.
 - `admin_allowlist` is service-role-only — never expose via client queries.

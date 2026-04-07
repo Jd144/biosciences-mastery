@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Razorpay from 'razorpay'
 import { createClient } from '@/lib/supabase/server'
+import { getServiceClient } from '@/lib/admin'
 import { PRICES } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   try {
-    // ✅ Validate Razorpay envs
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
       return NextResponse.json(
         { error: 'Razorpay env variables missing' },
@@ -13,7 +13,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ✅ Razorpay instance
     const razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID!,
       key_secret: process.env.RAZORPAY_KEY_SECRET!,
@@ -28,13 +27,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    let body: any
+    let body: { planType?: string; subjectSlug?: string; couponCode?: string }
     try {
       body = await request.json()
     } catch {
-      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 })
     }
-    const { planType, subjectSlug } = body
+    const { planType, subjectSlug, couponCode } = body
 
     if (!planType || !['FULL', 'SINGLE_SUBJECT'].includes(planType)) {
       return NextResponse.json({ error: 'Invalid plan type' }, { status: 400 })
@@ -46,7 +45,6 @@ export async function POST(request: NextRequest) {
     if (planType === 'FULL') {
       amountPaise = PRICES.FULL
 
-      // Check if user already has FULL entitlement
       const { data: existing } = await supabase
         .from('entitlements')
         .select('id')
@@ -61,7 +59,6 @@ export async function POST(request: NextRequest) {
         )
       }
     } else {
-      // SINGLE_SUBJECT
       if (!subjectSlug) {
         return NextResponse.json(
           { error: 'subjectSlug is required for SINGLE_SUBJECT plan' },
@@ -69,7 +66,6 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Fetch subject
       const { data: subject, error: subjectError } = await supabase
         .from('subjects')
         .select('id, slug')
@@ -84,7 +80,6 @@ export async function POST(request: NextRequest) {
       subjectId = subject.id
       amountPaise = PRICES.SINGLE_SUBJECT
 
-      // Check if user already has FULL entitlement
       const { data: fullEntitlement } = await supabase
         .from('entitlements')
         .select('id')
@@ -99,7 +94,6 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Check if user already has this subject
       const { data: existingSubject } = await supabase
         .from('entitlements')
         .select('id')
@@ -116,12 +110,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Apply coupon if provided
+    let discountPaise = 0
+    let appliedCouponCode: string | null = null
+
+    if (couponCode) {
+      const svc = getServiceClient()
+      const { data: coupon } = await svc
+        .from('coupons')
+        .select('*')
+        .eq('code', couponCode.toUpperCase().trim())
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (coupon) {
+        const now = new Date()
+        const validFrom = coupon.valid_from ? new Date(coupon.valid_from) : null
+        const validTo = coupon.valid_to ? new Date(coupon.valid_to) : null
+        const withinDates = (!validFrom || validFrom <= now) && (!validTo || validTo >= now)
+        const withinLimit = coupon.usage_limit === null || coupon.uses_count < coupon.usage_limit
+
+        if (withinDates && withinLimit) {
+          if (coupon.discount_type === 'percent') {
+            discountPaise = Math.floor((amountPaise * coupon.discount_value) / 100)
+          } else {
+            discountPaise = Math.min(coupon.discount_value * 100, amountPaise)
+          }
+          appliedCouponCode = coupon.code
+        }
+      }
+    }
+
+    const finalAmountPaise = Math.max(amountPaise - discountPaise, 100)
+
     // Create Razorpay order
     let razorpayOrder
     try {
       const receipt = `order_${user.id.slice(0, 8)}_${Date.now()}`
       razorpayOrder = await razorpay.orders.create({
-        amount: amountPaise,
+        amount: finalAmountPaise,
         currency: 'INR',
         receipt,
         notes: {
@@ -130,9 +157,12 @@ export async function POST(request: NextRequest) {
           subject_id: subjectId ?? '',
         },
       })
-    } catch (razorErr: any) {
+    } catch (razorErr: unknown) {
       console.error('Razorpay error:', razorErr)
-      return NextResponse.json({ error: 'Failed to create Razorpay order', detail: razorErr?.message }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Failed to create Razorpay order', detail: razorErr instanceof Error ? razorErr.message : String(razorErr) },
+        { status: 500 }
+      )
     }
 
     // Store order in DB
@@ -142,9 +172,11 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         plan_type: planType,
         subject_id: subjectId,
-        amount_paise: amountPaise,
+        amount_paise: finalAmountPaise,
         razorpay_order_id: razorpayOrder.id,
         status: 'created',
+        coupon_code: appliedCouponCode,
+        discount_paise: discountPaise,
       })
       .select()
       .single()
@@ -156,16 +188,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       orderId: razorpayOrder.id,
-      amount: amountPaise,
+      amount: finalAmountPaise,
       currency: 'INR',
       dbOrderId: order.id,
+      discountPaise,
+      originalAmount: amountPaise,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create order error:', error)
     return NextResponse.json({
       ok: false,
-      error: error?.message || JSON.stringify(error) || "Unknown error",
-      stack: process.env.NODE_ENV === "development" ? error?.stack : undefined
+      error: error instanceof Error ? error.message : String(error),
+      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined,
     }, { status: 500 })
   }
 }
+

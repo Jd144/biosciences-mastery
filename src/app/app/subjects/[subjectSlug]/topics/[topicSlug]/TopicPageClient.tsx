@@ -9,6 +9,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 const FREE_AI_DAILY_LIMIT = 5
+const FREE_QUIZ_QUESTION_LIMIT = 10
+const PREMIUM_QUIZ_QUESTION_LIMIT = 50
 
 interface Props {
   subject: { id: string; slug: string; name: string }
@@ -401,7 +403,7 @@ export default function TopicPageClient({ subject, topic, isPremium, content, ta
   const enContent = content.find((c) => c.language === 'en') ?? content[0]
   const enTables = tables.filter((t) => t.language === 'en')
 
-  const totalQuestions = quizzes.reduce((sum, q) => sum + q.quiz_questions.length, 0)
+  const availableQuestions = quizzes.reduce((sum, q) => sum + q.quiz_questions.length, 0)
 
   return (
     <div>
@@ -548,10 +550,10 @@ export default function TopicPageClient({ subject, topic, isPremium, content, ta
           {quizzes.length > 0 ? (
             <div>
               <div className="flex items-center gap-3 mb-6 flex-wrap">
-                <p className="text-sm text-gray-500">{totalQuestions} questions available</p>
+                <p className="text-sm text-gray-500">{availableQuestions} questions available</p>
                 {!isPremium && (
                   <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                    Free plan · 10 questions. <Link href={`/app/buy/subject?subject=${subject.slug}`} className="underline font-medium">Upgrade for 50</Link>
+                    Free plan · {FREE_QUIZ_QUESTION_LIMIT} questions. <Link href={`/app/buy/subject?subject=${subject.slug}`} className="underline font-medium">Upgrade for {PREMIUM_QUIZ_QUESTION_LIMIT}</Link>
                   </span>
                 )}
               </div>

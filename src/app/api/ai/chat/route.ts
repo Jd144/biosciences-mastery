@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     // Enforce daily limit for free users
     if (!isPremium) {
-      const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+      const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD UTC
       const serviceSupabase = getServiceClient()
 
       // Fetch current usage

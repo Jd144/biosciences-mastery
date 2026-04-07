@@ -54,9 +54,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Server-side AI rate limiting for free users (5 messages/day)
+    // Server-side AI rate limiting for free users (5 messages/day, UTC calendar day)
     if (!isPremium) {
-      const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+      const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD UTC
       const { data: usageRow, error: usageReadErr } = await supabase
         .from('ai_daily_usage')
         .select('count')
@@ -64,7 +64,10 @@ export async function POST(request: NextRequest) {
         .eq('usage_date', today)
         .maybeSingle()
 
-      if (!usageReadErr) {
+      if (usageReadErr) {
+        // If we can't read usage (e.g. table not yet migrated), fail open to avoid blocking users
+        console.error('AI usage read error:', usageReadErr)
+      } else {
         const currentCount = usageRow?.count ?? 0
         if (currentCount >= FREE_AI_LIMIT) {
           return NextResponse.json(
@@ -83,7 +86,6 @@ export async function POST(request: NextRequest) {
           { onConflict: 'user_id,usage_date' }
         )
       }
-      // If usageReadErr, fail open (allow the request) to avoid blocking users on DB errors
     }
 
     // Fetch topic context

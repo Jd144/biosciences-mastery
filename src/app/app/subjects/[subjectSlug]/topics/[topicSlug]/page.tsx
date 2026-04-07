@@ -67,7 +67,7 @@ export default async function TopicPage({
   const limitedQuizzes = allQuizzes.reduce(
     (acc: { used: number; quizzes: typeof allQuizzes }, quiz) => {
       if (acc.used >= questionLimit) return acc
-      const questions = ((quiz.quiz_questions ?? []) as unknown[]).slice(0, questionLimit - acc.used)
+      const questions = (quiz.quiz_questions ?? []).slice(0, questionLimit - acc.used)
       return {
         used: acc.used + questions.length,
         quizzes: [...acc.quizzes, { ...quiz, quiz_questions: questions }],

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { checkAndIncrementAiUsage, getAiLimit } from '@/lib/ai-limits'
 import OpenAI from 'openai'
 
 const PROMPT_VERSION = 'v1'
@@ -35,28 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
     }
 
-    // Check entitlement (determines rate-limit tier)
-    const subjectId = topic.subject_id
-    const { data: fullEnt } = await supabase
-      .from('entitlements')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('type', 'FULL')
-      .maybeSingle()
-
-    let hasPremium = !!fullEnt
-    if (!hasPremium) {
-      const { data: subjectEnt } = await supabase
-        .from('entitlements')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('type', 'SUBJECT')
-        .eq('subject_id', subjectId)
-        .maybeSingle()
-      hasPremium = !!subjectEnt
-    }
-
-    // Check cache first (unless regenerate requested) — cached responses don't count against the limit
+    // Check cache first (unless regenerate requested)
     if (!regenerate) {
       const { data: cached } = await supabase
         .from('ai_notes_cache')
@@ -74,25 +52,6 @@ export async function POST(request: NextRequest) {
           updatedAt: cached.updated_at,
         })
       }
-    }
-
-    // Premium users have unlimited AI access; only enforce daily cap for free users
-    let usage: { allowed: boolean; used: number; limit: number | null } = { allowed: true, used: 0, limit: null }
-    if (!hasPremium) {
-      const limit = getAiLimit(false)
-      const freeUsage = await checkAndIncrementAiUsage(user.id, 'notes', limit)
-      if (!freeUsage.allowed) {
-        return NextResponse.json(
-          {
-            error: `Daily AI limit reached (${freeUsage.limit} requests/day). Upgrade to premium for unlimited access.`,
-            limitExceeded: true,
-            used: freeUsage.used,
-            limit: freeUsage.limit,
-          },
-          { status: 429 }
-        )
-      }
-      usage = { allowed: true, used: freeUsage.used, limit: freeUsage.limit }
     }
 
     // Generate using OpenAI
@@ -145,8 +104,6 @@ Keep it concise but comprehensive, suitable for GAT-B level examination.`
     return NextResponse.json({
       content: contentMd,
       cached: false,
-      used: usage.used,
-      limit: usage.limit,
     })
   } catch (error) {
     console.error('AI notes error:', error)

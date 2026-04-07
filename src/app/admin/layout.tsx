@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { isAdmin } from '@/lib/admin'
 import Link from 'next/link'
-import { ShieldCheck, BookOpen, List, FileText, HelpCircle, ClipboardList, Users, ShoppingBag, Tag, BarChart2, Settings } from 'lucide-react'
+import { ShieldCheck, BookOpen, List, FileText, HelpCircle, ClipboardList, Users, KeyRound, BarChart2, Settings } from 'lucide-react'
 
 export default async function AdminLayout({
   children,
@@ -13,7 +13,7 @@ export default async function AdminLayout({
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
-  if (!(await isAdmin(user.id))) redirect('/app/dashboard')
+  if (!(await isAdmin(user.id, user.email))) redirect('/app/dashboard')
 
   const navItems = [
     { href: '/admin', label: 'Overview', icon: ShieldCheck },
@@ -23,8 +23,7 @@ export default async function AdminLayout({
     { href: '/admin/pyqs', label: 'PYQs', icon: HelpCircle },
     { href: '/admin/quizzes', label: 'Quizzes', icon: ClipboardList },
     { href: '/admin/users', label: 'Users', icon: Users },
-    { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
-    { href: '/admin/coupons', label: 'Coupons', icon: Tag },
+    { href: '/admin/access-codes', label: 'Access Codes', icon: KeyRound },
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
     { href: '/admin/settings', label: 'Settings', icon: Settings },
   ]

@@ -30,28 +30,15 @@ export default async function TopicPage({
 
   if (!topic) notFound()
 
-  // Check entitlement (only if authenticated)
-  let hasAccess = false
-  if (user) {
-    const { data: entitlements } = await supabase
-      .from('entitlements')
-      .select('type, subject_id')
-      .eq('user_id', user.id)
+  // If user is authenticated (and passed middleware), they have full access
+  const hasAccess = !!user
 
-    const hasFull = entitlements?.some((e) => e.type === 'FULL') ?? false
-    const hasSubject = entitlements?.some(
-      (e) => e.type === 'SUBJECT' && e.subject_id === subject.id
-    ) ?? false
-    hasAccess = hasFull || hasSubject
-  }
-
-  // Fetch topic overview (short notes) — visible to all users
+  // Fetch all content
   const { data: contentRows } = await supabase
     .from('topic_content')
     .select('language, short_notes_md, detailed_notes_md, flowchart_mermaid')
     .eq('topic_id', topic.id)
 
-  // Premium-only content — only fetch when entitled
   const [tablesRes, diagramsRes, pyqsRes, quizzesRes] = hasAccess
     ? await Promise.all([
         supabase.from('topic_tables').select('*').eq('topic_id', topic.id),
@@ -68,7 +55,6 @@ export default async function TopicPage({
           .order('quiz_no'),
       ])
     : [
-        // Free users: fetch only the first quiz for the 10-question free experience
         { data: null },
         { data: null },
         { data: null },

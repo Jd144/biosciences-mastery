@@ -15,7 +15,7 @@ export default async function AppLayout({
     redirect('/login')
   }
 
-  const adminStatus = await isAdmin(user.id)
+  const adminStatus = await isAdmin(user.id, user.email)
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, FileText, GitBranch, Table, Image as ImageIcon, HelpCircle, ClipboardList, Sparkles, MessageCircle, RefreshCw, Send, Lock, Crown } from 'lucide-react'
+import { ChevronRight, FileText, GitBranch, Table, Image as ImageIcon, HelpCircle, ClipboardList, Sparkles, MessageCircle, RefreshCw, Send, Lock } from 'lucide-react'
 import { Tabs, TabPanel } from '@/components/ui/Tabs'
 import Button from '@/components/ui/Button'
 import ReactMarkdown from 'react-markdown'
@@ -21,22 +21,17 @@ interface Props {
   quizzes: Array<{ id: string; quiz_no: number; title: string | null; quiz_questions: Array<{ id: string; question_no: number; question: string; options: { A: string; B: string; C: string; D: string }; answer: string; explanation: string | null }> }>
 }
 
-// Free-tier limits (mirrors env defaults on the server)
-const FREE_AI_REQUESTS_PER_DAY = 5
-const FREE_QUIZ_QUESTIONS = 10
-const PREMIUM_QUIZ_QUESTIONS = 50
-
 const ALL_TABS = [
-  { id: 'overview', label: 'Overview', icon: <FileText className="w-4 h-4" />, free: true },
-  { id: 'short-notes', label: 'Short Notes', icon: <FileText className="w-4 h-4" />, free: false },
-  { id: 'detailed-notes', label: 'Detailed Notes', icon: <FileText className="w-4 h-4" />, free: false },
-  { id: 'flowchart', label: 'Flowchart', icon: <GitBranch className="w-4 h-4" />, free: false },
-  { id: 'tables', label: 'Tables', icon: <Table className="w-4 h-4" />, free: false },
-  { id: 'diagrams', label: 'Diagrams', icon: <ImageIcon className="w-4 h-4" />, free: false },
-  { id: 'pyqs', label: 'PYQs', icon: <HelpCircle className="w-4 h-4" />, free: false },
-  { id: 'quizzes', label: 'Quizzes', icon: <ClipboardList className="w-4 h-4" />, free: true },
-  { id: 'ai-notes', label: 'AI Notes', icon: <Sparkles className="w-4 h-4" />, free: true },
-  { id: 'doubt-chat', label: 'Doubt Chat', icon: <MessageCircle className="w-4 h-4" />, free: true },
+  { id: 'overview', label: 'Overview', icon: <FileText className="w-4 h-4" /> },
+  { id: 'short-notes', label: 'Short Notes', icon: <FileText className="w-4 h-4" /> },
+  { id: 'detailed-notes', label: 'Detailed Notes', icon: <FileText className="w-4 h-4" /> },
+  { id: 'flowchart', label: 'Flowchart', icon: <GitBranch className="w-4 h-4" /> },
+  { id: 'tables', label: 'Tables', icon: <Table className="w-4 h-4" /> },
+  { id: 'diagrams', label: 'Diagrams', icon: <ImageIcon className="w-4 h-4" /> },
+  { id: 'pyqs', label: 'PYQs', icon: <HelpCircle className="w-4 h-4" /> },
+  { id: 'quizzes', label: 'Quizzes', icon: <ClipboardList className="w-4 h-4" /> },
+  { id: 'ai-notes', label: 'AI Notes', icon: <Sparkles className="w-4 h-4" /> },
+  { id: 'doubt-chat', label: 'Doubt Chat', icon: <MessageCircle className="w-4 h-4" /> },
 ]
 
 function MarkdownContent({ md }: { md: string }) {
@@ -51,34 +46,6 @@ function EmptyState({ message }: { message: string }) {
   return (
     <div className="text-center py-16 text-gray-400">
       <p>{message}</p>
-    </div>
-  )
-}
-
-function PremiumGate({ subjectSlug }: { subjectSlug: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 gap-4">
-      <div className="bg-amber-100 p-4 rounded-full">
-        <Lock className="w-8 h-8 text-amber-600" />
-      </div>
-      <h3 className="text-lg font-bold text-gray-800">Premium Content</h3>
-      <p className="text-gray-500 text-sm text-center max-w-sm">
-        This section is available for premium members. Upgrade to unlock full notes, PYQs, diagrams, and more.
-      </p>
-      <div className="flex gap-3 flex-wrap justify-center">
-        <Link
-          href={`/app/buy/subject?subject=${subjectSlug}`}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg"
-        >
-          Buy Subject ₹449
-        </Link>
-        <Link
-          href="/app/buy/full"
-          className="border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50 text-sm font-semibold px-5 py-2.5 rounded-lg"
-        >
-          Full Course ₹999
-        </Link>
-      </div>
     </div>
   )
 }
@@ -143,11 +110,8 @@ function PYQItem({ pyq }: { pyq: Props['pyqs'][0] }) {
   )
 }
 
-function QuizComponent({ quiz, isFree }: { quiz: Props['quizzes'][0]; isFree: boolean }) {
-  const allQuestions = quiz.quiz_questions ?? []
-  // Free users: cap at FREE_QUIZ_QUESTIONS; premium users: cap at PREMIUM_QUIZ_QUESTIONS
-  const limit = isFree ? FREE_QUIZ_QUESTIONS : PREMIUM_QUIZ_QUESTIONS
-  const questions = allQuestions.slice(0, limit)
+function QuizComponent({ quiz }: { quiz: Props['quizzes'][0] }) {
+  const questions = quiz.quiz_questions ?? []
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
   const [submitted, setSubmitted] = useState(false)
 
@@ -158,19 +122,7 @@ function QuizComponent({ quiz, isFree }: { quiz: Props['quizzes'][0]; isFree: bo
   return (
     <div className="bg-white border border-gray-100 rounded-xl overflow-hidden mb-6">
       <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="font-bold text-gray-800">Quiz {quiz.quiz_no}</h3>
-          {isFree && (
-            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
-              Free ({FREE_QUIZ_QUESTIONS} Q)
-            </span>
-          )}
-          {!isFree && (
-            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-              <Crown className="w-3 h-3" /> Premium ({questions.length} Q)
-            </span>
-          )}
-        </div>
+        <h3 className="font-bold text-gray-800">Quiz {quiz.quiz_no}</h3>
         {submitted && (
           <span className="text-sm font-medium text-emerald-700">
             Score: {score}/{questions.length}
@@ -232,14 +184,10 @@ function QuizComponent({ quiz, isFree }: { quiz: Props['quizzes'][0]; isFree: bo
 function AINotesTab({
   topicId,
   isAuthenticated,
-  hasAccess,
-  subjectSlug,
   topicTitle,
 }: {
   topicId: string
   isAuthenticated: boolean
-  hasAccess: boolean
-  subjectSlug: string
   topicTitle: string
 }) {
   const [notes, setNotes] = useState<string | null>(null)
@@ -274,18 +222,6 @@ function AINotesTab({
 
   return (
     <div>
-      {!hasAccess && (
-        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4 text-sm text-amber-700">
-          <Crown className="w-4 h-4 shrink-0" />
-          <span>
-            Free tier: up to <strong>{FREE_AI_REQUESTS_PER_DAY} AI requests/day</strong>.{' '}
-            <Link href={`/app/buy/subject?subject=${subjectSlug}`} className="underline font-medium">
-              Upgrade for unlimited access
-            </Link>
-            .
-          </span>
-        </div>
-      )}
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <select
           value={language}
@@ -337,15 +273,11 @@ function DoubtChatTab({
   topicId,
   subjectId,
   isAuthenticated,
-  hasAccess,
-  subjectSlug,
   topicTitle,
 }: {
   topicId: string
   subjectId: string
   isAuthenticated: boolean
-  hasAccess: boolean
-  subjectSlug: string
   topicTitle: string
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -388,18 +320,6 @@ function DoubtChatTab({
 
   return (
     <div className="flex flex-col gap-4">
-      {!hasAccess && (
-        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
-          <Crown className="w-4 h-4 shrink-0" />
-          <span>
-            Free tier: up to <strong>{FREE_AI_REQUESTS_PER_DAY} doubt messages/day</strong>.{' '}
-            <Link href={`/app/buy/subject?subject=${subjectSlug}`} className="underline font-medium">
-              Upgrade for unlimited access
-            </Link>
-            .
-          </span>
-        </div>
-      )}
       <div className="flex flex-col h-[60vh] bg-white border border-gray-100 rounded-xl overflow-hidden">
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
@@ -481,9 +401,7 @@ export default function TopicPageClient({
   pyqs,
   quizzes,
 }: Props) {
-  const visibleTabs = hasAccess
-    ? ALL_TABS
-    : ALL_TABS.filter((t) => t.free)
+  const visibleTabs = hasAccess ? ALL_TABS : ALL_TABS.filter((t) => ['overview', 'quizzes', 'ai-notes', 'doubt-chat'].includes(t.id))
 
   const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id ?? 'overview')
 
@@ -517,51 +435,18 @@ export default function TopicPageClient({
 
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <h1 className="text-xl font-bold text-gray-900">{topic.title}</h1>
-        {!hasAccess && (
-          <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-medium">
-            <Crown className="w-3.5 h-3.5" />
-            Free Preview
-          </span>
-        )}
         {hasAccess && (
-          <span className="inline-flex items-center gap-1.5 text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">
-            <Crown className="w-3.5 h-3.5" />
-            Premium Access
+          <span className="inline-flex items-center gap-1.5 text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-medium">
+            Full Access
           </span>
         )}
       </div>
-
-      {/* Free-tier upgrade banner */}
-      {!hasAccess && (
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 mb-5 flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <p className="font-semibold text-emerald-800 text-sm">Unlock Full Content</p>
-            <p className="text-emerald-600 text-xs mt-0.5">
-              Get detailed notes, flowcharts, tables, PYQs, all quizzes, and unlimited AI features.
-            </p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Link
-              href={`/app/buy/subject?subject=${subject.slug}`}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg"
-            >
-              Buy Subject ₹449
-            </Link>
-            <Link
-              href="/app/buy/full"
-              className="border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold px-4 py-2 rounded-lg"
-            >
-              Full Course ₹999
-            </Link>
-          </div>
-        </div>
-      )}
 
       {/* Tabs */}
       <Tabs tabs={tabsForComponent} activeTab={activeTab} onChange={setActiveTab} className="mb-0" />
 
       <div className="bg-white rounded-b-xl rounded-tr-xl border border-t-0 border-gray-100 p-6">
-        {/* Overview (free for all) */}
+        {/* Overview */}
         <TabPanel id="overview" activeTab={activeTab}>
           {enContent?.short_notes_md ? (
             <div>
@@ -573,153 +458,115 @@ export default function TopicPageClient({
           )}
         </TabPanel>
 
-        {/* Short Notes (premium) */}
+        {/* Short Notes */}
         <TabPanel id="short-notes" activeTab={activeTab}>
-          {hasAccess ? (
-            enContent?.short_notes_md ? (
-              <MarkdownContent md={enContent.short_notes_md} />
-            ) : (
-              <EmptyState message="Short notes not yet available for this topic." />
-            )
+          {enContent?.short_notes_md ? (
+            <MarkdownContent md={enContent.short_notes_md} />
           ) : (
-            <PremiumGate subjectSlug={subject.slug} />
+            <EmptyState message="Short notes not yet available for this topic." />
           )}
         </TabPanel>
 
-        {/* Detailed Notes (premium) */}
+        {/* Detailed Notes */}
         <TabPanel id="detailed-notes" activeTab={activeTab}>
-          {hasAccess ? (
-            enContent?.detailed_notes_md ? (
-              <MarkdownContent md={enContent.detailed_notes_md} />
-            ) : (
-              <EmptyState message="Detailed notes not yet available for this topic." />
-            )
+          {enContent?.detailed_notes_md ? (
+            <MarkdownContent md={enContent.detailed_notes_md} />
           ) : (
-            <PremiumGate subjectSlug={subject.slug} />
+            <EmptyState message="Detailed notes not yet available for this topic." />
           )}
         </TabPanel>
 
-        {/* Flowchart (premium) */}
+        {/* Flowchart */}
         <TabPanel id="flowchart" activeTab={activeTab}>
-          {hasAccess ? (
-            enContent?.flowchart_mermaid ? (
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-3">Flowchart (Mermaid)</h3>
-                <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm overflow-x-auto font-mono whitespace-pre-wrap">
-                  {enContent.flowchart_mermaid}
-                </pre>
-              </div>
-            ) : (
-              <EmptyState message="Flowchart not yet available for this topic." />
-            )
+          {enContent?.flowchart_mermaid ? (
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-3">Flowchart (Mermaid)</h3>
+              <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm overflow-x-auto font-mono whitespace-pre-wrap">
+                {enContent.flowchart_mermaid}
+              </pre>
+            </div>
           ) : (
-            <PremiumGate subjectSlug={subject.slug} />
+            <EmptyState message="Flowchart not yet available for this topic." />
           )}
         </TabPanel>
 
-        {/* Tables (premium) */}
+        {/* Tables */}
         <TabPanel id="tables" activeTab={activeTab}>
-          {hasAccess ? (
-            enTables.length > 0 ? (
-              <div className="space-y-8">
-                {enTables.map((t) => (
-                  <div key={t.id}>
-                    <h3 className="font-semibold text-gray-800 mb-3">{t.title}</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm border-collapse">
-                        <thead>
-                          <tr>
-                            {t.table_json.headers?.map((h, i) => (
-                              <th key={i} className="border border-gray-200 bg-gray-50 px-4 py-2 text-left font-semibold text-gray-700">
-                                {h}
-                              </th>
+          {enTables.length > 0 ? (
+            <div className="space-y-8">
+              {enTables.map((t) => (
+                <div key={t.id}>
+                  <h3 className="font-semibold text-gray-800 mb-3">{t.title}</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr>
+                          {t.table_json.headers?.map((h, i) => (
+                            <th key={i} className="border border-gray-200 bg-gray-50 px-4 py-2 text-left font-semibold text-gray-700">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {t.table_json.rows?.map((row, i) => (
+                          <tr key={i} className="hover:bg-gray-50">
+                            {row.map((cell, j) => (
+                              <td key={j} className="border border-gray-200 px-4 py-2 text-gray-600">{cell}</td>
                             ))}
                           </tr>
-                        </thead>
-                        <tbody>
-                          {t.table_json.rows?.map((row, i) => (
-                            <tr key={i} className="hover:bg-gray-50">
-                              {row.map((cell, j) => (
-                                <td key={j} className="border border-gray-200 px-4 py-2 text-gray-600">{cell}</td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="Tables not yet available for this topic." />
-            )
+                </div>
+              ))}
+            </div>
           ) : (
-            <PremiumGate subjectSlug={subject.slug} />
+            <EmptyState message="Tables not yet available for this topic." />
           )}
         </TabPanel>
 
-        {/* Diagrams (premium) */}
+        {/* Diagrams */}
         <TabPanel id="diagrams" activeTab={activeTab}>
-          {hasAccess ? (
-            diagrams.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {diagrams.map((d) => (
-                  <div key={d.id} className="border border-gray-100 rounded-xl overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={d.image_url} alt={d.alt_text ?? d.caption ?? 'Diagram'} className="w-full" />
-                    {d.caption && (
-                      <p className="px-4 py-2 text-sm text-gray-500 text-center border-t border-gray-100">{d.caption}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="Diagrams not yet available for this topic." />
-            )
+          {diagrams.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {diagrams.map((d) => (
+                <div key={d.id} className="border border-gray-100 rounded-xl overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={d.image_url} alt={d.alt_text ?? d.caption ?? 'Diagram'} className="w-full" />
+                  {d.caption && (
+                    <p className="px-4 py-2 text-sm text-gray-500 text-center border-t border-gray-100">{d.caption}</p>
+                  )}
+                </div>
+              ))}
+            </div>
           ) : (
-            <PremiumGate subjectSlug={subject.slug} />
+            <EmptyState message="Diagrams not yet available for this topic." />
           )}
         </TabPanel>
 
-        {/* PYQs (premium) */}
+        {/* PYQs */}
         <TabPanel id="pyqs" activeTab={activeTab}>
-          {hasAccess ? (
-            pyqs.length > 0 ? (
-              <div>
-                <p className="text-sm text-gray-500 mb-4">{pyqs.length} questions from official GAT-B papers</p>
-                {pyqs.map((pyq) => <PYQItem key={pyq.id} pyq={pyq} />)}
-              </div>
-            ) : (
-              <EmptyState message="PYQs not yet available for this topic." />
-            )
+          {pyqs.length > 0 ? (
+            <div>
+              <p className="text-sm text-gray-500 mb-4">{pyqs.length} questions from official GAT-B papers</p>
+              {pyqs.map((pyq) => <PYQItem key={pyq.id} pyq={pyq} />)}
+            </div>
           ) : (
-            <PremiumGate subjectSlug={subject.slug} />
+            <EmptyState message="PYQs not yet available for this topic." />
           )}
         </TabPanel>
 
-        {/* Quizzes (free: 10Q from quiz 1; premium: all quizzes) */}
+        {/* Quizzes */}
         <TabPanel id="quizzes" activeTab={activeTab}>
           {!isAuthenticated ? (
             <LoginGate topicTitle={topic.title} />
           ) : quizzes.length > 0 ? (
             <div>
-              {!hasAccess && (
-                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 text-sm text-amber-700">
-                  <Crown className="w-4 h-4 shrink-0" />
-                  <span>
-                    Free tier: <strong>1 quiz · {FREE_QUIZ_QUESTIONS} questions</strong> per topic.{' '}
-                    <Link href={`/app/buy/subject?subject=${subject.slug}`} className="underline font-medium">
-                      Upgrade
-                    </Link>{' '}
-                    for up to {PREMIUM_QUIZ_QUESTIONS} questions across all quizzes.
-                  </span>
-                </div>
-              )}
-              {hasAccess && (
-                <p className="text-sm text-gray-500 mb-6">{quizzes.length} quizzes available</p>
-              )}
+              <p className="text-sm text-gray-500 mb-6">{quizzes.length} quizzes available</p>
               {quizzes.map((quiz) => (
-                <QuizComponent key={quiz.id} quiz={quiz} isFree={!hasAccess} />
+                <QuizComponent key={quiz.id} quiz={quiz} />
               ))}
             </div>
           ) : (
@@ -727,25 +574,21 @@ export default function TopicPageClient({
           )}
         </TabPanel>
 
-        {/* AI Notes (free: limited; premium: unlimited) */}
+        {/* AI Notes */}
         <TabPanel id="ai-notes" activeTab={activeTab}>
           <AINotesTab
             topicId={topic.id}
             isAuthenticated={isAuthenticated}
-            hasAccess={hasAccess}
-            subjectSlug={subject.slug}
             topicTitle={topic.title}
           />
         </TabPanel>
 
-        {/* Doubt Chat (free: limited; premium: unlimited) */}
+        {/* Doubt Chat */}
         <TabPanel id="doubt-chat" activeTab={activeTab}>
           <DoubtChatTab
             topicId={topic.id}
             subjectId={subject.id}
             isAuthenticated={isAuthenticated}
-            hasAccess={hasAccess}
-            subjectSlug={subject.slug}
             topicTitle={topic.title}
           />
         </TabPanel>

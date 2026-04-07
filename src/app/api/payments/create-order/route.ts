@@ -17,9 +17,9 @@ console.log("KEY_SECRET:", process.env.RAZORPAY_KEY_SECRET ? "EXISTS" : "MISSING
     }
 
     const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID!,
-      key_secret: process.env.RAZORPAY_KEY_SECRET!,
-    })
+  key_id: "rzp_live_SagmLhDnh0mnV9",
+  key_secret: "50ulgOESmofpI2K4m1UFZo1b",
+})
 
     const supabase = await createClient()
     const {

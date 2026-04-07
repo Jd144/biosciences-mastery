@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import TopicPageClient from './TopicPageClient'
 
+const FREE_QUIZ_QUESTION_LIMIT = 10
+const PREMIUM_QUIZ_QUESTION_LIMIT = 50
+
 export default async function TopicPage({
   params,
 }: {
@@ -31,11 +34,7 @@ export default async function TopicPage({
   const hasSubject = entitlements?.some(
     (e) => e.type === 'SUBJECT' && e.subject_id === subject.id
   ) ?? false
-  const hasAccess = hasFull || hasSubject
-
-  if (!hasAccess) {
-    redirect(`/app/subjects/${subjectSlug}`)
-  }
+  const isPremium = hasFull || hasSubject
 
   // Fetch topic
   const { data: topic } = await supabase
@@ -56,16 +55,36 @@ export default async function TopicPage({
     supabase.from('quizzes').select('*, quiz_questions(*)').eq('topic_id', topic.id).order('quiz_no'),
   ])
 
+  // Limit quiz questions based on plan
+  const questionLimit = isPremium ? PREMIUM_QUIZ_QUESTION_LIMIT : FREE_QUIZ_QUESTION_LIMIT
+  const rawQuizzes = quizzesRes.data ?? []
+
+  // Flatten questions across quizzes, cap at limit, then redistribute back
+  type QuizQuestion = { id: string; question_no: number; question: string; options: { A: string; B: string; C: string; D: string }; answer: string; explanation: string | null }
+  const limitedQuizzes = rawQuizzes.reduce<{ quizzes: typeof rawQuizzes; remaining: number }>(
+    (acc, quiz) => {
+      const allQuestions: QuizQuestion[] = (quiz.quiz_questions as QuizQuestion[] | null) ?? []
+      const allowed = Math.min(allQuestions.length, acc.remaining)
+      if (allowed === 0) return acc
+      return {
+        quizzes: [...acc.quizzes, { ...quiz, quiz_questions: allQuestions.slice(0, allowed) }],
+        remaining: acc.remaining - allowed,
+      }
+    },
+    { quizzes: [], remaining: questionLimit }
+  ).quizzes
+
   return (
     <TopicPageClient
       subject={subject}
       topic={topic}
       userId={user.id}
+      isPremium={isPremium}
       content={contentRes.data ?? []}
-      tables={tablesRes.data ?? []}
-      diagrams={diagramsRes.data ?? []}
+      tables={isPremium ? (tablesRes.data ?? []) : []}
+      diagrams={isPremium ? (diagramsRes.data ?? []) : []}
       pyqs={pyqsRes.data ?? []}
-      quizzes={quizzesRes.data ?? []}
+      quizzes={limitedQuizzes}
     />
   )
 }

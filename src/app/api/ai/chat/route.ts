@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getServiceClient } from '@/lib/admin'
 import OpenAI from 'openai'
+
+const FREE_AI_DAILY_LIMIT = 5
 
 export async function POST(request: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -21,7 +24,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 })
     }
 
-    // Check entitlement
+    // Check entitlement to determine free vs premium
+    let isPremium = false
     if (subjectId) {
       const { data: fullEnt } = await supabase
         .from('entitlements')
@@ -30,7 +34,9 @@ export async function POST(request: NextRequest) {
         .eq('type', 'FULL')
         .maybeSingle()
 
-      if (!fullEnt) {
+      if (fullEnt) {
+        isPremium = true
+      } else {
         const { data: subjectEnt } = await supabase
           .from('entitlements')
           .select('id')
@@ -39,13 +45,53 @@ export async function POST(request: NextRequest) {
           .eq('subject_id', subjectId)
           .maybeSingle()
 
-        if (!subjectEnt) {
-          return NextResponse.json(
-            { error: 'Access denied. Please purchase this subject.' },
-            { status: 403 }
-          )
-        }
+        if (subjectEnt) isPremium = true
       }
+    } else {
+      // No subjectId provided – check for any FULL entitlement
+      const { data: fullEnt } = await supabase
+        .from('entitlements')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('type', 'FULL')
+        .maybeSingle()
+
+      if (fullEnt) isPremium = true
+    }
+
+    // Enforce daily limit for free users
+    if (!isPremium) {
+      const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+      const serviceSupabase = getServiceClient()
+
+      // Fetch current usage
+      const { data: usage } = await serviceSupabase
+        .from('ai_usage_daily')
+        .select('count')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .maybeSingle()
+
+      const currentCount = usage?.count ?? 0
+      if (currentCount >= FREE_AI_DAILY_LIMIT) {
+        return NextResponse.json(
+          {
+            error: `Free plan limit reached. You can ask ${FREE_AI_DAILY_LIMIT} AI questions per day. Upgrade to Premium for unlimited access.`,
+            limitReached: true,
+            limit: FREE_AI_DAILY_LIMIT,
+            used: currentCount,
+          },
+          { status: 429 }
+        )
+      }
+
+      // Increment usage
+      await serviceSupabase
+        .from('ai_usage_daily')
+        .upsert(
+          { user_id: user.id, date: today, count: currentCount + 1 },
+          { onConflict: 'user_id,date' }
+        )
     }
 
     // Fetch topic context
@@ -87,7 +133,7 @@ Provide clear, accurate, exam-focused answers.`
 
     const reply = completion.choices[0]?.message?.content ?? ''
 
-    return NextResponse.json({ reply })
+    return NextResponse.json({ reply, isPremium })
   } catch (error) {
     console.error('AI chat error:', error)
     return NextResponse.json({ error: 'Failed to get AI response' }, { status: 500 })

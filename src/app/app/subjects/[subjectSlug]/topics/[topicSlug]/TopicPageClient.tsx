@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, FileText, GitBranch, Table, Image, HelpCircle, ClipboardList, Sparkles, MessageCircle, RefreshCw, Send } from 'lucide-react'
+import { ChevronRight, FileText, GitBranch, Table, Image, HelpCircle, ClipboardList, Sparkles, MessageCircle, RefreshCw, Send, Lock } from 'lucide-react'
 import { Tabs, TabPanel } from '@/components/ui/Tabs'
 import Button from '@/components/ui/Button'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { FREE_AI_DAILY_LIMIT, PREMIUM_QUIZ_QUESTION_COUNT } from '@/lib/limits'
 
 interface Props {
   subject: { id: string; slug: string; name: string }
@@ -17,6 +18,8 @@ interface Props {
   diagrams: Array<{ id: string; image_url: string; caption: string | null; alt_text: string | null }>
   pyqs: Array<{ id: string; year: number; question: string; options: { A: string; B: string; C: string; D: string }; answer: string; explanation: string | null }>
   quizzes: Array<{ id: string; quiz_no: number; title: string | null; quiz_questions: Array<{ id: string; question_no: number; question: string; options: { A: string; B: string; C: string; D: string }; answer: string; explanation: string | null }> }>
+  isPremium: boolean
+  quizQuestionLimit: number
 }
 
 const TABS = [
@@ -43,6 +46,22 @@ function EmptyState({ message }: { message: string }) {
   return (
     <div className="text-center py-16 text-gray-400">
       <p>{message}</p>
+    </div>
+  )
+}
+
+function PremiumLock() {
+  return (
+    <div className="text-center py-16 border-2 border-dashed border-amber-200 rounded-xl bg-amber-50">
+      <Lock className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+      <p className="text-gray-700 font-semibold mb-1">Premium Content</p>
+      <p className="text-sm text-gray-500 mb-4">Upgrade to unlock full notes, flowcharts, tables, diagrams, and AI features.</p>
+      <Link
+        href={`/app/buy/full`}
+        className="inline-block bg-emerald-600 text-white text-sm font-semibold px-5 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+      >
+        Upgrade to Premium — ₹999
+      </Link>
     </div>
   )
 }
@@ -87,19 +106,20 @@ function PYQItem({ pyq }: { pyq: Props['pyqs'][0] }) {
   )
 }
 
-function QuizComponent({ quiz }: { quiz: Props['quizzes'][0] }) {
+type QuizQuestion = Props['quizzes'][0]['quiz_questions'][0]
+
+function FlatQuizComponent({ questions }: { questions: QuizQuestion[] }) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
   const [submitted, setSubmitted] = useState(false)
-  const questions = quiz.quiz_questions ?? []
 
   const score = submitted
     ? questions.filter((q) => selectedAnswers[q.id] === q.answer).length
     : 0
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl overflow-hidden mb-6">
+    <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
       <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-        <h3 className="font-bold text-gray-800">Quiz {quiz.quiz_no}</h3>
+        <h3 className="font-bold text-gray-800">Quiz ({questions.length} questions)</h3>
         {submitted && (
           <span className="text-sm font-medium text-emerald-700">
             Score: {score}/{questions.length}
@@ -107,10 +127,10 @@ function QuizComponent({ quiz }: { quiz: Props['quizzes'][0] }) {
         )}
       </div>
       <div className="p-5 space-y-6">
-        {questions.map((q) => (
+        {questions.map((q, idx) => (
           <div key={q.id}>
             <p className="text-sm font-medium text-gray-800 mb-3">
-              {q.question_no}. {q.question}
+              {idx + 1}. {q.question}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {(['A', 'B', 'C', 'D'] as const).map((opt) => {
@@ -158,7 +178,7 @@ function QuizComponent({ quiz }: { quiz: Props['quizzes'][0] }) {
   )
 }
 
-function AINotesTab({ topicId, subjectId }: { topicId: string; subjectId: string }) {
+function AINotesTab({ topicId, subjectId, isPremium }: { topicId: string; subjectId: string; isPremium: boolean }) {
   const [notes, setNotes] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [language, setLanguage] = useState<'en' | 'hi' | 'hinglish'>('en')
@@ -187,6 +207,12 @@ function AINotesTab({ topicId, subjectId }: { topicId: string; subjectId: string
 
   return (
     <div>
+      {!isPremium && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+          <strong>Free plan:</strong> {FREE_AI_DAILY_LIMIT} AI requests per day across all AI features.{' '}
+          <Link href="/app/buy/full" className="underline font-semibold text-emerald-700">Upgrade for unlimited.</Link>
+        </div>
+      )}
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <select
           value={language}
@@ -234,11 +260,12 @@ interface ChatMessage {
   content: string
 }
 
-function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: string }) {
+function DoubtChatTab({ topicId, subjectId, isPremium }: { topicId: string; subjectId: string; isPremium: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [language, setLanguage] = useState<'en' | 'hi' | 'hinglish'>('en')
+  const [limitReached, setLimitReached] = useState(false)
 
   const sendMessage = async () => {
     if (!input.trim()) return
@@ -260,6 +287,11 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
         }),
       })
       const data = await res.json()
+      if (res.status === 429) {
+        setLimitReached(true)
+        setMessages([...newMessages, { role: 'assistant', content: data.error }])
+        return
+      }
       if (!res.ok) throw new Error(data.error)
       setMessages([...newMessages, { role: 'assistant', content: data.reply }])
     } catch (err: unknown) {
@@ -276,6 +308,11 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
         <div className="flex items-center gap-2">
           <MessageCircle className="w-4 h-4 text-emerald-600" />
           <span className="text-sm font-medium text-gray-700">AI Doubt Solver</span>
+          {!isPremium && (
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+              Free: {FREE_AI_DAILY_LIMIT} requests/day
+            </span>
+          )}
         </div>
         <select
           value={language}
@@ -294,6 +331,9 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
           <div className="text-center py-8 text-gray-400">
             <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
             <p className="text-sm">Ask any doubt about this topic!</p>
+            {!isPremium && (
+              <p className="text-xs mt-1 text-amber-600">Free plan: {FREE_AI_DAILY_LIMIT} AI requests per day</p>
+            )}
           </div>
         )}
         {messages.map((msg, i) => (
@@ -322,16 +362,28 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
         )}
       </div>
 
+      {/* Limit reached banner */}
+      {limitReached && (
+        <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-800 text-center">
+          Daily limit reached.{' '}
+          <Link href="/app/buy/full" className="underline font-semibold text-emerald-700">
+            Upgrade to Premium
+          </Link>{' '}
+          for unlimited AI access.
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t border-gray-100 p-3 flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-          placeholder="Ask your doubt..."
-          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          placeholder={limitReached ? 'Daily limit reached — upgrade for more' : 'Ask your doubt...'}
+          disabled={limitReached}
+          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
         />
-        <Button onClick={sendMessage} disabled={!input.trim() || loading} size="sm">
+        <Button onClick={sendMessage} disabled={!input.trim() || loading || limitReached} size="sm">
           <Send className="w-4 h-4" />
         </Button>
       </div>
@@ -339,11 +391,20 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
   )
 }
 
-export default function TopicPageClient({ subject, topic, userId, content, tables, diagrams, pyqs, quizzes }: Props) {
+export default function TopicPageClient({ subject, topic, userId, content, tables, diagrams, pyqs, quizzes, isPremium, quizQuestionLimit }: Props) {
   const [activeTab, setActiveTab] = useState('short-notes')
 
   const enContent = content.find((c) => c.language === 'en') ?? content[0]
   const enTables = tables.filter((t) => t.language === 'en')
+
+  // Flatten and limit quiz questions based on tier
+  const allQuizQuestions: QuizQuestion[] = quizzes
+    .slice()
+    .sort((a, b) => a.quiz_no - b.quiz_no)
+    .flatMap((quiz) =>
+      (quiz.quiz_questions ?? []).slice().sort((a, b) => a.question_no - b.question_no)
+    )
+    .slice(0, quizQuestionLimit)
 
   return (
     <div>
@@ -362,7 +423,7 @@ export default function TopicPageClient({ subject, topic, userId, content, table
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} className="mb-0" />
 
       <div className="bg-white rounded-b-xl rounded-tr-xl border border-t-0 border-gray-100 p-6">
-        {/* Short Notes */}
+        {/* Short Notes — available to all */}
         <TabPanel id="short-notes" activeTab={activeTab}>
           {enContent?.short_notes_md ? (
             <MarkdownContent md={enContent.short_notes_md} />
@@ -371,86 +432,102 @@ export default function TopicPageClient({ subject, topic, userId, content, table
           )}
         </TabPanel>
 
-        {/* Detailed Notes */}
+        {/* Detailed Notes — premium only */}
         <TabPanel id="detailed-notes" activeTab={activeTab}>
-          {enContent?.detailed_notes_md ? (
-            <MarkdownContent md={enContent.detailed_notes_md} />
+          {isPremium ? (
+            enContent?.detailed_notes_md ? (
+              <MarkdownContent md={enContent.detailed_notes_md} />
+            ) : (
+              <EmptyState message="Detailed notes not yet available for this topic." />
+            )
           ) : (
-            <EmptyState message="Detailed notes not yet available for this topic." />
+            <PremiumLock />
           )}
         </TabPanel>
 
-        {/* Flowchart */}
+        {/* Flowchart — premium only */}
         <TabPanel id="flowchart" activeTab={activeTab}>
-          {enContent?.flowchart_mermaid ? (
-            <div>
-              <h3 className="font-semibold text-gray-700 mb-3">Flowchart (Mermaid)</h3>
-              <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm overflow-x-auto font-mono whitespace-pre-wrap">
-                {enContent.flowchart_mermaid}
-              </pre>
-            </div>
+          {isPremium ? (
+            enContent?.flowchart_mermaid ? (
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-3">Flowchart (Mermaid)</h3>
+                <pre className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm overflow-x-auto font-mono whitespace-pre-wrap">
+                  {enContent.flowchart_mermaid}
+                </pre>
+              </div>
+            ) : (
+              <EmptyState message="Flowchart not yet available for this topic." />
+            )
           ) : (
-            <EmptyState message="Flowchart not yet available for this topic." />
+            <PremiumLock />
           )}
         </TabPanel>
 
-        {/* Tables */}
+        {/* Tables — premium only */}
         <TabPanel id="tables" activeTab={activeTab}>
-          {enTables.length > 0 ? (
-            <div className="space-y-8">
-              {enTables.map((t) => (
-                <div key={t.id}>
-                  <h3 className="font-semibold text-gray-800 mb-3">{t.title}</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm border-collapse">
-                      <thead>
-                        <tr>
-                          {t.table_json.headers?.map((h, i) => (
-                            <th key={i} className="border border-gray-200 bg-gray-50 px-4 py-2 text-left font-semibold text-gray-700">
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {t.table_json.rows?.map((row, i) => (
-                          <tr key={i} className="hover:bg-gray-50">
-                            {row.map((cell, j) => (
-                              <td key={j} className="border border-gray-200 px-4 py-2 text-gray-600">{cell}</td>
+          {isPremium ? (
+            enTables.length > 0 ? (
+              <div className="space-y-8">
+                {enTables.map((t) => (
+                  <div key={t.id}>
+                    <h3 className="font-semibold text-gray-800 mb-3">{t.title}</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm border-collapse">
+                        <thead>
+                          <tr>
+                            {t.table_json.headers?.map((h, i) => (
+                              <th key={i} className="border border-gray-200 bg-gray-50 px-4 py-2 text-left font-semibold text-gray-700">
+                                {h}
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {t.table_json.rows?.map((row, i) => (
+                            <tr key={i} className="hover:bg-gray-50">
+                              {row.map((cell, j) => (
+                                <td key={j} className="border border-gray-200 px-4 py-2 text-gray-600">{cell}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="Tables not yet available for this topic." />
+            )
           ) : (
-            <EmptyState message="Tables not yet available for this topic." />
+            <PremiumLock />
           )}
         </TabPanel>
 
-        {/* Diagrams */}
+        {/* Diagrams — premium only */}
         <TabPanel id="diagrams" activeTab={activeTab}>
-          {diagrams.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {diagrams.map((d) => (
-                <div key={d.id} className="border border-gray-100 rounded-xl overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={d.image_url} alt={d.alt_text ?? d.caption ?? 'Diagram'} className="w-full" />
-                  {d.caption && (
-                    <p className="px-4 py-2 text-sm text-gray-500 text-center border-t border-gray-100">{d.caption}</p>
-                  )}
-                </div>
-              ))}
-            </div>
+          {isPremium ? (
+            diagrams.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {diagrams.map((d) => (
+                  <div key={d.id} className="border border-gray-100 rounded-xl overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={d.image_url} alt={d.alt_text ?? d.caption ?? 'Diagram'} className="w-full" />
+                    {d.caption && (
+                      <p className="px-4 py-2 text-sm text-gray-500 text-center border-t border-gray-100">{d.caption}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="Diagrams not yet available for this topic." />
+            )
           ) : (
-            <EmptyState message="Diagrams not yet available for this topic." />
+            <PremiumLock />
           )}
         </TabPanel>
 
-        {/* PYQs */}
+        {/* PYQs — available to all */}
         <TabPanel id="pyqs" activeTab={activeTab}>
           {pyqs.length > 0 ? (
             <div>
@@ -462,26 +539,39 @@ export default function TopicPageClient({ subject, topic, userId, content, table
           )}
         </TabPanel>
 
-        {/* Quizzes */}
+        {/* Quizzes — free: 10 questions, premium: 50 questions */}
         <TabPanel id="quizzes" activeTab={activeTab}>
-          {quizzes.length > 0 ? (
-            <div>
-              <p className="text-sm text-gray-500 mb-6">{quizzes.length} quizzes available</p>
-              {quizzes.map((quiz) => <QuizComponent key={quiz.id} quiz={quiz} />)}
-            </div>
+          <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
+            <p className="text-sm text-gray-500">
+              {allQuizQuestions.length} question{allQuizQuestions.length !== 1 ? 's' : ''} available
+              {!isPremium && (
+                <span className="ml-1 text-amber-600">(free plan — {quizQuestionLimit} per topic)</span>
+              )}
+            </p>
+            {!isPremium && (
+              <Link
+                href="/app/buy/full"
+                className="text-xs text-emerald-700 underline font-semibold"
+              >
+                Upgrade for {PREMIUM_QUIZ_QUESTION_COUNT} questions
+              </Link>
+            )}
+          </div>
+          {allQuizQuestions.length > 0 ? (
+            <FlatQuizComponent questions={allQuizQuestions} />
           ) : (
             <EmptyState message="Quizzes not yet available for this topic." />
           )}
         </TabPanel>
 
-        {/* AI Notes */}
+        {/* AI Notes — available to all (rate limited for free) */}
         <TabPanel id="ai-notes" activeTab={activeTab}>
-          <AINotesTab topicId={topic.id} subjectId={subject.id} />
+          <AINotesTab topicId={topic.id} subjectId={subject.id} isPremium={isPremium} />
         </TabPanel>
 
-        {/* Doubt Chat */}
+        {/* Doubt Chat — available to all (rate limited for free) */}
         <TabPanel id="doubt-chat" activeTab={activeTab}>
-          <DoubtChatTab topicId={topic.id} subjectId={subject.id} />
+          <DoubtChatTab topicId={topic.id} subjectId={subject.id} isPremium={isPremium} />
         </TabPanel>
       </div>
     </div>

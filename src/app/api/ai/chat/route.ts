@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkAndIncrementAiUsage, getAiLimit } from '@/lib/ai-limits'
 import OpenAI from 'openai'
 
 export async function POST(request: NextRequest) {
@@ -21,7 +22,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 })
     }
 
-    // Check entitlement
+    // Check entitlement (determines rate-limit tier)
+    let hasPremium = false
     if (subjectId) {
       const { data: fullEnt } = await supabase
         .from('entitlements')
@@ -30,7 +32,9 @@ export async function POST(request: NextRequest) {
         .eq('type', 'FULL')
         .maybeSingle()
 
-      if (!fullEnt) {
+      if (fullEnt) {
+        hasPremium = true
+      } else {
         const { data: subjectEnt } = await supabase
           .from('entitlements')
           .select('id')
@@ -39,13 +43,27 @@ export async function POST(request: NextRequest) {
           .eq('subject_id', subjectId)
           .maybeSingle()
 
-        if (!subjectEnt) {
-          return NextResponse.json(
-            { error: 'Access denied. Please purchase this subject.' },
-            { status: 403 }
-          )
-        }
+        if (subjectEnt) hasPremium = true
       }
+    }
+
+    // Premium users have unlimited AI access; only enforce daily cap for free users
+    let usage: { allowed: boolean; used: number; limit: number | null } = { allowed: true, used: 0, limit: null }
+    if (!hasPremium) {
+      const limit = getAiLimit(false)
+      const freeUsage = await checkAndIncrementAiUsage(user.id, 'chat', limit)
+      if (!freeUsage.allowed) {
+        return NextResponse.json(
+          {
+            error: `Daily AI limit reached (${freeUsage.limit} requests/day). Upgrade to premium for unlimited access.`,
+            limitExceeded: true,
+            used: freeUsage.used,
+            limit: freeUsage.limit,
+          },
+          { status: 429 }
+        )
+      }
+      usage = { allowed: true, used: freeUsage.used, limit: freeUsage.limit }
     }
 
     // Fetch topic context
@@ -87,7 +105,7 @@ Provide clear, accurate, exam-focused answers.`
 
     const reply = completion.choices[0]?.message?.content ?? ''
 
-    return NextResponse.json({ reply })
+    return NextResponse.json({ reply, used: usage.used, limit: usage.limit })
   } catch (error) {
     console.error('AI chat error:', error)
     return NextResponse.json({ error: 'Failed to get AI response' }, { status: 500 })

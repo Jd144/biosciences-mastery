@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Allow unauthenticated preview access to individual topic pages
+const PUBLIC_TOPIC_PATTERN = /^\/app\/subjects\/[^/]+\/topics\/[^/]+$/
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -35,8 +38,8 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Protect /app routes
-  if (pathname.startsWith('/app') && !user) {
+  // Protect /app routes — except individual topic pages which show a free preview
+  if (pathname.startsWith('/app') && !user && !PUBLIC_TOPIC_PATTERN.test(pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

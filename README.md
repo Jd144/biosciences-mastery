@@ -19,6 +19,22 @@ India's production-ready GAT-B (Graduate Aptitude Test in Biotechnology) prepara
 
 ---
 
+## Free vs Premium Limits
+
+All limits are enforced **server-side** — they cannot be bypassed from the client.
+
+| Feature | Free (no purchase) | Premium (any paid plan) |
+|---|---|---|
+| **AI Doubt Chat** | 5 questions/day | Unlimited |
+| **Quiz questions per topic** | 10 questions | 50 questions |
+| **Content access** | Requires purchase | Full access |
+
+### How limits work
+- **AI chat (5/day free):** Each message sent via the Doubt Chat is counted in the `ai_daily_usage` table. When a free user reaches 5 messages in a calendar day the API returns HTTP 429 and the UI shows an upgrade prompt. Premium users (FULL or SUBJECT entitlement) skip this check entirely.
+- **Quiz questions (10 free / 50 premium):** The server limits the number of quiz questions fetched from the database before sending them to the client. Free users receive at most 10 questions across all quizzes for a topic; premium users receive up to 50.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -74,6 +90,21 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000   # Used as base for password-reset re
    INSERT INTO public.admin_allowlist (user_id, email)
    VALUES ('your-supabase-user-uuid', 'your@email.com');
    ```
+
+> **Existing databases:** If upgrading from an earlier version, run the following migration to add the AI daily usage tracking table:
+> ```sql
+> CREATE TABLE IF NOT EXISTS public.ai_daily_usage (
+>   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+>   user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+>   usage_date  DATE NOT NULL DEFAULT CURRENT_DATE,
+>   count       INT NOT NULL DEFAULT 0,
+>   UNIQUE (user_id, usage_date)
+> );
+> ALTER TABLE public.ai_daily_usage ENABLE ROW LEVEL SECURITY;
+> CREATE POLICY "Users can read own ai_daily_usage" ON public.ai_daily_usage FOR SELECT TO authenticated USING (auth.uid() = user_id);
+> CREATE POLICY "Users can upsert own ai_daily_usage" ON public.ai_daily_usage FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+> CREATE INDEX IF NOT EXISTS idx_ai_daily_usage_user_date ON public.ai_daily_usage(user_id, usage_date);
+> ```
 
 ### 4. Supabase Auth Configuration
 

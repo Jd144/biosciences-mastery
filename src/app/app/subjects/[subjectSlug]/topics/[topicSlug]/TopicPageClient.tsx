@@ -2,16 +2,20 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, FileText, GitBranch, Table, Image, HelpCircle, ClipboardList, Sparkles, MessageCircle, RefreshCw, Send } from 'lucide-react'
+import { ChevronRight, FileText, GitBranch, Table, Image, HelpCircle, ClipboardList, Sparkles, MessageCircle, RefreshCw, Send, Crown, Lock } from 'lucide-react'
 import { Tabs, TabPanel } from '@/components/ui/Tabs'
 import Button from '@/components/ui/Button'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+const FREE_AI_LIMIT = 5
+
 interface Props {
   subject: { id: string; slug: string; name: string }
   topic: { id: string; slug: string; title: string }
   userId: string
+  isPremium: boolean
+  quizQuestionLimit: number
   content: Array<{ language: string; short_notes_md: string | null; detailed_notes_md: string | null; flowchart_mermaid: string | null }>
   tables: Array<{ id: string; title: string; table_json: { headers: string[]; rows: string[][] }; language: string }>
   diagrams: Array<{ id: string; image_url: string; caption: string | null; alt_text: string | null }>
@@ -234,14 +238,15 @@ interface ChatMessage {
   content: string
 }
 
-function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: string }) {
+function DoubtChatTab({ topicId, subjectId, isPremium }: { topicId: string; subjectId: string; isPremium: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [language, setLanguage] = useState<'en' | 'hi' | 'hinglish'>('en')
+  const [limitReached, setLimitReached] = useState(false)
 
   const sendMessage = async () => {
-    if (!input.trim()) return
+    if (!input.trim() || limitReached) return
     const userMsg: ChatMessage = { role: 'user', content: input }
     const newMessages = [...messages, userMsg]
     setMessages(newMessages)
@@ -260,8 +265,14 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setMessages([...newMessages, { role: 'assistant', content: data.reply }])
+      if (res.status === 429 && data.limitReached) {
+        setLimitReached(true)
+        setMessages([...newMessages, { role: 'assistant', content: data.error }])
+      } else if (!res.ok) {
+        throw new Error(data.error)
+      } else {
+        setMessages([...newMessages, { role: 'assistant', content: data.reply }])
+      }
     } catch (err: unknown) {
       setMessages([...newMessages, { role: 'assistant', content: `Error: ${err instanceof Error ? err.message : 'Failed to get response'}` }])
     } finally {
@@ -276,6 +287,15 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
         <div className="flex items-center gap-2">
           <MessageCircle className="w-4 h-4 text-emerald-600" />
           <span className="text-sm font-medium text-gray-700">AI Doubt Solver</span>
+          {isPremium ? (
+            <span className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+              <Crown className="w-3 h-3" /> Unlimited
+            </span>
+          ) : (
+            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+              {FREE_AI_LIMIT}/day free
+            </span>
+          )}
         </div>
         <select
           value={language}
@@ -294,6 +314,9 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
           <div className="text-center py-8 text-gray-400">
             <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
             <p className="text-sm">Ask any doubt about this topic!</p>
+            {!isPremium && (
+              <p className="text-xs mt-1 text-gray-400">{FREE_AI_LIMIT} free questions per day</p>
+            )}
           </div>
         )}
         {messages.map((msg, i) => (
@@ -322,16 +345,25 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
         )}
       </div>
 
+      {/* Limit reached banner */}
+      {limitReached && (
+        <div className="px-4 py-3 bg-amber-50 border-t border-amber-200 flex items-center gap-2 text-sm text-amber-800">
+          <Lock className="w-4 h-4 shrink-0" />
+          <span>Daily free limit reached. <Link href="/app/buy/full" className="underline font-medium">Upgrade to Premium</Link> for unlimited AI access.</span>
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t border-gray-100 p-3 flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-          placeholder="Ask your doubt..."
-          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          placeholder={limitReached ? 'Daily limit reached — upgrade to continue' : 'Ask your doubt...'}
+          disabled={limitReached}
+          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-50 disabled:text-gray-400"
         />
-        <Button onClick={sendMessage} disabled={!input.trim() || loading} size="sm">
+        <Button onClick={sendMessage} disabled={!input.trim() || loading || limitReached} size="sm">
           <Send className="w-4 h-4" />
         </Button>
       </div>
@@ -339,11 +371,12 @@ function DoubtChatTab({ topicId, subjectId }: { topicId: string; subjectId: stri
   )
 }
 
-export default function TopicPageClient({ subject, topic, userId, content, tables, diagrams, pyqs, quizzes }: Props) {
+export default function TopicPageClient({ subject, topic, userId, isPremium, quizQuestionLimit, content, tables, diagrams, pyqs, quizzes }: Props) {
   const [activeTab, setActiveTab] = useState('short-notes')
 
   const enContent = content.find((c) => c.language === 'en') ?? content[0]
   const enTables = tables.filter((t) => t.language === 'en')
+  const totalQuizQuestions = quizzes.reduce((sum, q) => sum + (q.quiz_questions?.length ?? 0), 0)
 
   return (
     <div>
@@ -464,9 +497,26 @@ export default function TopicPageClient({ subject, topic, userId, content, table
 
         {/* Quizzes */}
         <TabPanel id="quizzes" activeTab={activeTab}>
+          {/* Quiz limit info banner */}
+          <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg mb-4 ${isPremium ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+            {isPremium ? (
+              <>
+                <Crown className="w-3.5 h-3.5 shrink-0" />
+                <span>Premium: up to {quizQuestionLimit} questions per topic</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  Free plan: {totalQuizQuestions} of {quizQuestionLimit} questions shown.{' '}
+                  <Link href="/app/buy/full" className="underline font-medium">Upgrade to Premium</Link> for 50 questions per topic.
+                </span>
+              </>
+            )}
+          </div>
           {quizzes.length > 0 ? (
             <div>
-              <p className="text-sm text-gray-500 mb-6">{quizzes.length} quizzes available</p>
+              <p className="text-sm text-gray-500 mb-6">{quizzes.length} {quizzes.length === 1 ? 'quiz' : 'quizzes'} available</p>
               {quizzes.map((quiz) => <QuizComponent key={quiz.id} quiz={quiz} />)}
             </div>
           ) : (
@@ -481,7 +531,7 @@ export default function TopicPageClient({ subject, topic, userId, content, table
 
         {/* Doubt Chat */}
         <TabPanel id="doubt-chat" activeTab={activeTab}>
-          <DoubtChatTab topicId={topic.id} subjectId={subject.id} />
+          <DoubtChatTab topicId={topic.id} subjectId={subject.id} isPremium={isPremium} />
         </TabPanel>
       </div>
     </div>

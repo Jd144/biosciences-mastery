@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
 
+const FREE_AI_LIMIT = 5 // messages per day for free (no entitlement) users
+
 export async function POST(request: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   try {
@@ -21,7 +23,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 })
     }
 
-    // Check entitlement
+    // Check entitlement (determines free vs premium)
+    let isPremium = false
     if (subjectId) {
       const { data: fullEnt } = await supabase
         .from('entitlements')
@@ -30,7 +33,9 @@ export async function POST(request: NextRequest) {
         .eq('type', 'FULL')
         .maybeSingle()
 
-      if (!fullEnt) {
+      if (fullEnt) {
+        isPremium = true
+      } else {
         const { data: subjectEnt } = await supabase
           .from('entitlements')
           .select('id')
@@ -45,6 +50,41 @@ export async function POST(request: NextRequest) {
             { status: 403 }
           )
         }
+        isPremium = true
+      }
+    }
+
+    // Server-side AI rate limiting for free users (5 messages/day, UTC calendar day)
+    if (!isPremium) {
+      const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD UTC
+      const { data: usageRow, error: usageReadErr } = await supabase
+        .from('ai_daily_usage')
+        .select('count')
+        .eq('user_id', user.id)
+        .eq('usage_date', today)
+        .maybeSingle()
+
+      if (usageReadErr) {
+        // If we can't read usage (e.g. table not yet migrated), fail open to avoid blocking users
+        console.error('AI usage read error:', usageReadErr)
+      } else {
+        const currentCount = usageRow?.count ?? 0
+        if (currentCount >= FREE_AI_LIMIT) {
+          return NextResponse.json(
+            {
+              error: `You've used all ${FREE_AI_LIMIT} free AI questions for today. Upgrade to Premium for unlimited access, or try again tomorrow.`,
+              limitReached: true,
+              limit: FREE_AI_LIMIT,
+            },
+            { status: 429 }
+          )
+        }
+
+        // Increment usage counter (upsert)
+        await supabase.from('ai_daily_usage').upsert(
+          { user_id: user.id, usage_date: today, count: currentCount + 1 },
+          { onConflict: 'user_id,usage_date' }
+        )
       }
     }
 

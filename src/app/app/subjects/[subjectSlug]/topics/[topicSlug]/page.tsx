@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import TopicPageClient from './TopicPageClient'
 
+const FREE_QUIZ_QUESTION_LIMIT = 10
+const PREMIUM_QUIZ_QUESTION_LIMIT = 50
+
 export default async function TopicPage({
   params,
 }: {
@@ -37,6 +40,8 @@ export default async function TopicPage({
     redirect(`/app/subjects/${subjectSlug}`)
   }
 
+  const isPremium = hasFull || hasSubject
+
   // Fetch topic
   const { data: topic } = await supabase
     .from('topics')
@@ -56,16 +61,33 @@ export default async function TopicPage({
     supabase.from('quizzes').select('*, quiz_questions(*)').eq('topic_id', topic.id).order('quiz_no'),
   ])
 
+  // Enforce server-side quiz question limits: free=10, premium=50
+  const questionLimit = isPremium ? PREMIUM_QUIZ_QUESTION_LIMIT : FREE_QUIZ_QUESTION_LIMIT
+  const allQuizzes = quizzesRes.data ?? []
+  const limitedQuizzes = allQuizzes.reduce(
+    (acc: { used: number; quizzes: typeof allQuizzes }, quiz) => {
+      if (acc.used >= questionLimit) return acc
+      const questions = (quiz.quiz_questions ?? []).slice(0, questionLimit - acc.used)
+      return {
+        used: acc.used + questions.length,
+        quizzes: [...acc.quizzes, { ...quiz, quiz_questions: questions }],
+      }
+    },
+    { used: 0, quizzes: [] }
+  ).quizzes
+
   return (
     <TopicPageClient
       subject={subject}
       topic={topic}
       userId={user.id}
+      isPremium={isPremium}
       content={contentRes.data ?? []}
       tables={tablesRes.data ?? []}
       diagrams={diagramsRes.data ?? []}
       pyqs={pyqsRes.data ?? []}
-      quizzes={quizzesRes.data ?? []}
+      quizzes={limitedQuizzes ?? []}
+      quizQuestionLimit={questionLimit}
     />
   )
 }

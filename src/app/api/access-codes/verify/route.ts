@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getServiceClient } from '@/lib/admin'
 
-const MAX_ATTEMPTS_PER_HOUR = 5
+const MAX_ATTEMPTS_PER_HOUR = 3
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,6 +38,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const userEmail = user.email
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Account does not have an email address associated.' }, { status: 400 })
+    }
+
     // Look up the code
     const { data: accessCode } = await serviceClient
       .from('access_codes')
@@ -46,7 +51,6 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     // Validate: code must exist, email must match, must not already be used by someone else
-    const userEmail = user.email ?? ''
     const isValid =
       accessCode &&
       accessCode.assigned_email.toLowerCase() === userEmail.toLowerCase() &&

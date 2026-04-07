@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { topicId, subjectId: _subjectId, messages, language = 'en' } = body
+    const { topicId, messages, language = 'en' } = body
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'messages array is required' }, { status: 400 })

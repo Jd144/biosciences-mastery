@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import TopicPageClient from './TopicPageClient'
+import { FREE_QUIZ_QUESTION_COUNT, PREMIUM_QUIZ_QUESTION_COUNT } from '@/lib/limits'
 
 export default async function TopicPage({
   params,
@@ -21,7 +22,7 @@ export default async function TopicPage({
 
   if (!subject) notFound()
 
-  // Check entitlement
+  // Check entitlement to determine tier (free vs premium)
   const { data: entitlements } = await supabase
     .from('entitlements')
     .select('type, subject_id')
@@ -31,11 +32,8 @@ export default async function TopicPage({
   const hasSubject = entitlements?.some(
     (e) => e.type === 'SUBJECT' && e.subject_id === subject.id
   ) ?? false
-  const hasAccess = hasFull || hasSubject
-
-  if (!hasAccess) {
-    redirect(`/app/subjects/${subjectSlug}`)
-  }
+  const isPremium = hasFull || hasSubject
+  const quizQuestionLimit = isPremium ? PREMIUM_QUIZ_QUESTION_COUNT : FREE_QUIZ_QUESTION_COUNT
 
   // Fetch topic
   const { data: topic } = await supabase
@@ -66,6 +64,8 @@ export default async function TopicPage({
       diagrams={diagramsRes.data ?? []}
       pyqs={pyqsRes.data ?? []}
       quizzes={quizzesRes.data ?? []}
+      isPremium={isPremium}
+      quizQuestionLimit={quizQuestionLimit}
     />
   )
 }

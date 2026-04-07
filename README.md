@@ -9,9 +9,10 @@ India's production-ready GAT-B (Graduate Aptitude Test in Biotechnology) prepara
 - **Payments**: Razorpay (India-only, INR)
   - Full Course: ₹999 (lifetime, all 10 subjects)
   - Single Subject: ₹449 (lifetime, per subject)
+- **Free vs Premium tiers** (see table below)
 - **Content**: Notes (short/detailed), Flowcharts (Mermaid), Tables, Diagrams
 - **PYQs**: Official previous year questions, topic-tagged
-- **Quizzes**: 10 quizzes × 30 questions per topic
+- **Quizzes**: 10 quizzes × 30 questions per topic (served based on tier)
 - **AI Features** (OpenAI GPT-4o-mini):
   - AI Doubt Solver Chat (topic/subject context)
   - AI Notes Generator (click-to-generate, cached per user/topic/language)
@@ -60,6 +61,10 @@ RAZORPAY_WEBHOOK_SECRET=your-webhook-secret
 NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxxx
 OPENAI_API_KEY=sk-xxxxxxxxxxxxx
 NEXT_PUBLIC_APP_URL=http://localhost:3000   # Used as base for password-reset redirect URL
+# Optional: override free/premium limits (defaults shown)
+FREE_AI_DAILY_LIMIT=5
+FREE_QUIZ_QUESTION_COUNT=10
+PREMIUM_QUIZ_QUESTION_COUNT=50
 ```
 
 > **Security note:** `SUPABASE_SERVICE_ROLE_KEY` is used server-side only and is never exposed to the browser. Only `NEXT_PUBLIC_SUPABASE_ANON_KEY` (and other `NEXT_PUBLIC_*` variables) are sent to the client.
@@ -68,8 +73,9 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000   # Used as base for password-reset re
 
 1. Create a project at https://supabase.com
 2. Go to **SQL Editor** and run `supabase/schema.sql`
-3. Then run `supabase/seed.sql` to populate subjects and topics
-4. Add yourself as admin:
+3. Run `supabase/migrations/20250407_add_ai_usage_logs.sql` to add the AI rate-limit table
+4. Then run `supabase/seed.sql` to populate subjects and topics
+5. Add yourself as admin:
    ```sql
    INSERT INTO public.admin_allowlist (user_id, email)
    VALUES ('your-supabase-user-uuid', 'your@email.com');
@@ -145,6 +151,31 @@ supabase/
 └── migrations/
     └── 20240101_fix_rls_policies.sql   # Idempotent RLS policy fixes
 ```
+
+---
+
+## Free vs Premium Tiers
+
+All authenticated users can access topic pages. Features are tiered:
+
+| Feature | Free (no paid plan) | Premium (FULL or SUBJECT entitlement) |
+|---------|--------------------|-----------------------------------------|
+| Short Notes | ✅ | ✅ |
+| PYQs | ✅ | ✅ |
+| Quiz Questions | **10 per topic** | **50 per topic** |
+| AI Doubt Chat | **5 requests / day** | **Unlimited** |
+| AI Notes Generator | **5 requests / day** | **Unlimited** |
+| Detailed Notes | 🔒 Premium | ✅ |
+| Flowcharts | 🔒 Premium | ✅ |
+| Tables | 🔒 Premium | ✅ |
+| Diagrams | 🔒 Premium | ✅ |
+
+### Enforcement
+
+- **AI rate limits are server-side** — enforced in `/api/ai/chat` and `/api/ai/notes`. Free users hitting the daily limit receive HTTP **429** with an upgrade prompt.
+- **Quiz limits are server-side** — `quizQuestionLimit` is computed in the topic page Server Component and passed down. The client never receives more questions than the limit.
+- **Premium = unlimited** — the AI rate-limit check is skipped entirely for premium users (no database lookup, no record required), so there is no risk of accidentally blocking premium users due to a missing `ai_usage_logs` row.
+- Limits are configurable via environment variables (see `.env.example`).
 
 ---
 

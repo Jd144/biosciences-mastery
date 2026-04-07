@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getServiceClient } from '@/lib/admin'
 import OpenAI from 'openai'
+import { FREE_AI_DAILY_LIMIT } from '@/lib/limits'
 
 const PROMPT_VERSION = 'v1'
 
@@ -34,7 +36,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
     }
 
-    // Check entitlement
+    // Determine premium status (FULL or per-subject entitlement)
     const subjectId = topic.subject_id
     const { data: fullEnt } = await supabase
       .from('entitlements')
@@ -43,7 +45,8 @@ export async function POST(request: NextRequest) {
       .eq('type', 'FULL')
       .maybeSingle()
 
-    if (!fullEnt) {
+    let isPremium = !!fullEnt
+    if (!isPremium) {
       const { data: subjectEnt } = await supabase
         .from('entitlements')
         .select('id')
@@ -51,10 +54,7 @@ export async function POST(request: NextRequest) {
         .eq('type', 'SUBJECT')
         .eq('subject_id', subjectId)
         .maybeSingle()
-
-      if (!subjectEnt) {
-        return NextResponse.json({ error: 'Access denied. Please purchase this subject.' }, { status: 403 })
-      }
+      isPremium = !!subjectEnt
     }
 
     // Check cache (unless regenerate requested)
@@ -73,8 +73,43 @@ export async function POST(request: NextRequest) {
           content: cached.content_md,
           cached: true,
           updatedAt: cached.updated_at,
+          isPremium,
         })
       }
+    }
+
+    // Enforce rate limit for free users before calling OpenAI
+    // (premium = unlimited — skip the check entirely to avoid blocking on missing records)
+    if (!isPremium) {
+      const today = new Date().toISOString().split('T')[0]
+      const serviceClient = getServiceClient()
+
+      const { data: usageRow } = await serviceClient
+        .from('ai_usage_logs')
+        .select('request_count')
+        .eq('user_id', user.id)
+        .eq('usage_date', today)
+        .maybeSingle()
+
+      const currentCount = usageRow?.request_count ?? 0
+
+      if (currentCount >= FREE_AI_DAILY_LIMIT) {
+        return NextResponse.json(
+          {
+            error: `Free plan limit reached (${FREE_AI_DAILY_LIMIT} AI requests per day). Upgrade to Premium for unlimited access.`,
+            limitReached: true,
+            limit: FREE_AI_DAILY_LIMIT,
+            remaining: 0,
+          },
+          { status: 429 }
+        )
+      }
+
+      // Increment usage counter
+      await serviceClient.from('ai_usage_logs').upsert(
+        { user_id: user.id, usage_date: today, request_count: currentCount + 1 },
+        { onConflict: 'user_id,usage_date' }
+      )
     }
 
     // Generate using OpenAI
@@ -127,6 +162,7 @@ Keep it concise but comprehensive, suitable for GAT-B level examination.`
     return NextResponse.json({
       content: contentMd,
       cached: false,
+      isPremium,
     })
   } catch (error) {
     console.error('AI notes error:', error)

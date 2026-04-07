@@ -27,9 +27,9 @@ const keyDates = [
 ]
 
 const examPattern = [
-  { section: 'General Aptitude', questions: 10, marks: 15, type: 'MCQ', note: 'Mandatory for all papers' },
-  { section: 'Engineering Mathematics', questions: 13, marks: 15, type: 'MCQ / NAT', note: 'Part of BT Core section' },
-  { section: 'Biotechnology Core', questions: 42, marks: 70, type: 'MCQ / MSQ / NAT', note: 'Subject-specific questions' },
+  { section: 'General Aptitude', questions: '10', marks: '15', type: 'MCQ', note: 'Mandatory for all papers' },
+  { section: 'Engineering Mathematics', questions: '~13–15 *', marks: '~13–15 *', type: 'MCQ / NAT', note: 'Part of BT Core section' },
+  { section: 'Biotechnology Core', questions: '~40–42 *', marks: '~70 *', type: 'MCQ / MSQ / NAT', note: 'Subject-specific questions' },
 ]
 
 const questionTypes = [
@@ -42,7 +42,7 @@ const questionTypes = [
   {
     type: 'MSQ – Multiple Select',
     description: '4 options, ≥1 correct answer',
-    negative: 'No negative marking',
+    negative: 'No negative marking; partial marking may apply for partially correct responses',
     color: 'bg-green-50 border-green-200 text-green-700',
   },
   {
@@ -323,6 +323,10 @@ export default function GATBPage() {
             </table>
           </div>
 
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 text-xs text-blue-800">
+            <span className="font-semibold">* Note:</span> GATE BT consists of 65 questions (100 marks) with approximately 15 marks for General Aptitude, 13–15 marks for Engineering Mathematics, and about 70 marks for Biotechnology/Core subjects. The exact number of questions per section may vary every year. Refer to the official GATE notification for confirmed figures.
+          </div>
+
           <h3 className="font-semibold text-gray-800 mb-3 text-sm">Question Types &amp; Marking Scheme</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {questionTypes.map((q) => (
@@ -392,6 +396,17 @@ export default function GATBPage() {
           ))}
         </div>
       </section>
+
+      {/* Practice Content Notice */}
+      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-8 flex items-start gap-3">
+        <BookOpen className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold text-purple-800 text-sm">BioSciences Mastery – Practice Content</p>
+          <p className="text-purple-700 text-xs mt-0.5">
+            The sections below (Previous Year Questions, Syllabus topics, Preparation Tips) are part of the BioSciences Mastery practice platform. They are for preparation purposes and do not represent the official GATE exam format or question distribution.
+          </p>
+        </div>
+      </div>
 
       {/* PYQ Section */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8 overflow-hidden">

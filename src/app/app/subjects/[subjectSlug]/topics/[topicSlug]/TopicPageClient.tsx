@@ -280,7 +280,7 @@ function AINotesTab({
           <span>
             Free tier: up to <strong>{FREE_AI_REQUESTS_PER_DAY} AI requests/day</strong>.{' '}
             <Link href={`/app/buy/subject?subject=${subjectSlug}`} className="underline font-medium">
-              Upgrade for higher limits
+              Upgrade for unlimited access
             </Link>
             .
           </span>
@@ -394,7 +394,7 @@ function DoubtChatTab({
           <span>
             Free tier: up to <strong>{FREE_AI_REQUESTS_PER_DAY} doubt messages/day</strong>.{' '}
             <Link href={`/app/buy/subject?subject=${subjectSlug}`} className="underline font-medium">
-              Upgrade for higher limits
+              Upgrade for unlimited access
             </Link>
             .
           </span>
@@ -727,7 +727,7 @@ export default function TopicPageClient({
           )}
         </TabPanel>
 
-        {/* AI Notes (free: limited; premium: higher limits) */}
+        {/* AI Notes (free: limited; premium: unlimited) */}
         <TabPanel id="ai-notes" activeTab={activeTab}>
           <AINotesTab
             topicId={topic.id}
@@ -738,7 +738,7 @@ export default function TopicPageClient({
           />
         </TabPanel>
 
-        {/* Doubt Chat (free: limited; premium: higher limits) */}
+        {/* Doubt Chat (free: limited; premium: unlimited) */}
         <TabPanel id="doubt-chat" activeTab={activeTab}>
           <DoubtChatTab
             topicId={topic.id}

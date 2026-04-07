@@ -28,8 +28,8 @@ India's production-ready GAT-B (Graduate Aptitude Test in Biotechnology) prepara
 | Full notes (detailed, flowchart, tables, diagrams) | ❌ Locked | ✅ Yes |
 | PYQs | ❌ Locked | ✅ Yes |
 | Quizzes | ✅ 10 questions / topic (quiz 1) | ✅ Up to 50 questions / topic |
-| AI Doubt Chat | ✅ Up to 5 requests/day | ✅ Up to 50 requests/day |
-| AI Notes Generator | ✅ Up to 5 requests/day | ✅ Up to 50 requests/day |
+| AI Doubt Chat | ✅ Up to 5 requests/day | ✅ Unlimited |
+| AI Notes Generator | ✅ Up to 5 requests/day | ✅ Unlimited |
 
 > **Unauthenticated** visitors can browse individual topic pages and see the free overview, but must sign in to use AI features and quizzes.
 
@@ -40,15 +40,16 @@ The following environment variables control free/premium limits (with defaults s
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `FREE_AI_REQUESTS_PER_DAY` | `5` | Max AI requests per day for free users |
-| `PREMIUM_AI_REQUESTS_PER_DAY` | `50` | Max AI requests per day for premium users |
 | `FREE_QUIZ_QUESTIONS` | `10` | Max quiz questions per topic for free users |
 | `PREMIUM_QUIZ_QUESTIONS` | `50` | Max quiz questions per topic for premium users |
 
 Add these to your `.env.local` to override the defaults.
 
+> **Note**: Premium users have **unlimited** AI access. The `PREMIUM_AI_REQUESTS_PER_DAY` variable is retained for legacy compatibility but has no effect on premium users.
+
 ### Rate Limiting Implementation
 
-AI rate limits are tracked in the `ai_usage_log` Supabase table (one row per `user_id × endpoint × date`). The service-role client increments the counter atomically on each request. When a user exceeds their daily limit the API returns HTTP 429 with a clear error message and an upgrade CTA. Cached AI notes do **not** count against the daily limit.
+AI rate limits are tracked in the `ai_usage_log` Supabase table (one row per `user_id × endpoint × date`). The service-role client increments the counter atomically on each request. When a free user exceeds their daily limit the API returns HTTP 429 with a clear error message and an upgrade CTA. Premium users bypass rate limiting entirely. Cached AI notes do **not** count against the daily limit.
 
 ---
 
@@ -96,7 +97,6 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000   # Used as base for password-reset re
 
 # Free vs premium limits (optional — defaults shown)
 FREE_AI_REQUESTS_PER_DAY=5
-PREMIUM_AI_REQUESTS_PER_DAY=50
 FREE_QUIZ_QUESTIONS=10
 PREMIUM_QUIZ_QUESTIONS=50
 ```
@@ -192,8 +192,8 @@ supabase/
 
 | Entitlement | Access |
 |-------------|--------|
-| `FULL` | All 10 subjects (full content, premium AI & quiz limits) |
-| `SUBJECT(id)` | Only that subject (full content, premium AI & quiz limits) |
+| `FULL` | All 10 subjects (full content, unlimited AI, premium quiz limits) |
+| `SUBJECT(id)` | Only that subject (full content, unlimited AI, premium quiz limits) |
 | None (free, authenticated) | Topic overview, 10-question quiz per topic, 5 AI requests/day |
 | Unauthenticated | Topic overview only (no AI, no quiz) |
 

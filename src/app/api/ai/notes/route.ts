@@ -76,23 +76,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Enforce per-day rate limit server-side (only for new generations)
-    const limit = getAiLimit(hasPremium)
-    const usage = await checkAndIncrementAiUsage(user.id, 'notes', limit)
-    if (!usage.allowed) {
-      return NextResponse.json(
-        {
-          error: `Daily AI limit reached (${usage.limit} requests/day). ${
-            hasPremium
-              ? 'Please try again tomorrow.'
-              : 'Upgrade to premium for a higher limit.'
-          }`,
-          limitExceeded: true,
-          used: usage.used,
-          limit: usage.limit,
-        },
-        { status: 429 }
-      )
+    // Premium users have unlimited AI access; only enforce daily cap for free users
+    let usage: { allowed: boolean; used: number; limit: number | null } = { allowed: true, used: 0, limit: null }
+    if (!hasPremium) {
+      const limit = getAiLimit(false)
+      const freeUsage = await checkAndIncrementAiUsage(user.id, 'notes', limit)
+      if (!freeUsage.allowed) {
+        return NextResponse.json(
+          {
+            error: `Daily AI limit reached (${freeUsage.limit} requests/day). Upgrade to premium for unlimited access.`,
+            limitExceeded: true,
+            used: freeUsage.used,
+            limit: freeUsage.limit,
+          },
+          { status: 429 }
+        )
+      }
+      usage = { allowed: true, used: freeUsage.used, limit: freeUsage.limit }
     }
 
     // Generate using OpenAI

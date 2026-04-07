@@ -3,7 +3,7 @@
 -- ============================================================
 
 -- Atomically increments the daily AI usage count for a user.
--- If the new count would exceed p_limit the increment is rolled back
+-- If the new count would exceed p_limit the count is capped at p_limit
 -- and the function returns allowed=false.
 --
 -- This runs as SECURITY DEFINER so it can write to ai_usage_log

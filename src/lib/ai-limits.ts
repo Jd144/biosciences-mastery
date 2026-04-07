@@ -1,10 +1,15 @@
 import { getServiceClient } from '@/lib/admin'
 
 /**
- * Per-day AI request limits read from environment variables.
- * Defaults: free = 5, premium = 50.
+ * Per-day AI request limit for free users, read from environment variable.
+ * Premium users bypass rate limiting entirely and have unlimited access.
  */
 export const FREE_AI_LIMIT = parseInt(process.env.FREE_AI_REQUESTS_PER_DAY ?? '5', 10)
+/**
+ * @deprecated Premium users now have unlimited AI access. This constant is retained
+ * for backward compatibility with any external tooling that reads the env var, but it
+ * has no effect on request handling.
+ */
 export const PREMIUM_AI_LIMIT = parseInt(process.env.PREMIUM_AI_REQUESTS_PER_DAY ?? '50', 10)
 
 export function getAiLimit(hasPremium: boolean): number {

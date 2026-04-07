@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
-import { BookOpen, LogOut, User, LayoutDashboard, ShieldCheck } from 'lucide-react'
+import { BookOpen, LogOut, User, LayoutDashboard, ShieldCheck, FlaskConical } from 'lucide-react'
 
 interface NavbarProps {
   isAdmin?: boolean
@@ -47,6 +47,13 @@ export default function Navbar({ isAdmin }: NavbarProps) {
             >
               <BookOpen className="w-4 h-4" />
               Subjects
+            </Link>
+            <Link
+              href="/app/gatb"
+              className="flex items-center gap-1.5 text-gray-600 hover:text-emerald-600 text-sm font-medium"
+            >
+              <FlaskConical className="w-4 h-4" />
+              GATE B 2026
             </Link>
             {isAdmin && (
               <Link

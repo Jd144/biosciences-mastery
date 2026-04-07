@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, Crown, Sparkles, Lock } from 'lucide-react'
+import { BookOpen, Crown, Sparkles, Lock, FlaskConical, Calendar, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 
 export default async function DashboardPage() {
@@ -114,6 +114,36 @@ export default async function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* GATE B 2026 Banner */}
+      <div className="bg-gradient-to-br from-emerald-700 to-teal-600 rounded-2xl p-6 mb-8 text-white">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="bg-white/20 p-3 rounded-xl shrink-0">
+              <FlaskConical className="w-6 h-6 text-yellow-300" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-2 py-0.5 rounded-full">NEW</span>
+                <p className="font-bold text-lg">GATE BT 2026 Exam Guide</p>
+              </div>
+              <p className="text-emerald-100 text-sm">
+                Key dates, exam pattern, full syllabus, PYQs &amp; preparation strategy — all in one place.
+              </p>
+              <div className="flex items-center gap-1 mt-1 text-xs text-emerald-200">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Exam Date: February 2026 (Expected)</span>
+              </div>
+            </div>
+          </div>
+          <Link
+            href="/app/gatb"
+            className="shrink-0 flex items-center gap-2 bg-white text-emerald-700 hover:bg-emerald-50 font-semibold text-sm px-5 py-2.5 rounded-lg transition-colors"
+          >
+            View Guide <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
 
       {/* Subjects Grid */}

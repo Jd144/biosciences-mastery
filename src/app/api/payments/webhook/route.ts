@@ -107,6 +107,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Increment coupon usage if applicable
+    if (order.coupon_code) {
+      const { data: cpn } = await supabase
+        .from('coupons')
+        .select('uses_count')
+        .eq('code', order.coupon_code)
+        .maybeSingle()
+      if (cpn) {
+        await supabase
+          .from('coupons')
+          .update({ uses_count: cpn.uses_count + 1 })
+          .eq('code', order.coupon_code)
+      }
+    }
+
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error('Webhook error:', error)

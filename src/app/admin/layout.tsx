@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { isAdmin } from '@/lib/admin'
 import Link from 'next/link'
-import { ShieldCheck, BookOpen, List, FileText, HelpCircle, ClipboardList, Users, ShoppingBag } from 'lucide-react'
+import { ShieldCheck, BookOpen, List, FileText, HelpCircle, ClipboardList, Users, ShoppingBag, Tag, BarChart2, Settings } from 'lucide-react'
 
 export default async function AdminLayout({
   children,
@@ -24,6 +24,9 @@ export default async function AdminLayout({
     { href: '/admin/quizzes', label: 'Quizzes', icon: ClipboardList },
     { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
+    { href: '/admin/coupons', label: 'Coupons', icon: Tag },
+    { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
+    { href: '/admin/settings', label: 'Settings', icon: Settings },
   ]
 
   return (

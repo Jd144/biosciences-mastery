@@ -5,6 +5,9 @@ import { getServiceClient } from '@/lib/admin'
 import { PRICES } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
+
+  console.log("KEY_ID:", process.env.RAZORPAY_KEY_ID)
+console.log("KEY_SECRET:", process.env.RAZORPAY_KEY_SECRET ? "EXISTS" : "MISSING")
   try {
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
       return NextResponse.json(

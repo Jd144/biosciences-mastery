@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect, notFound } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import TopicPageClient from './TopicPageClient'
 
 export default async function TopicPage({
@@ -10,9 +10,8 @@ export default async function TopicPage({
   const { subjectSlug, topicSlug } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
-  // Fetch subject
+  // Fetch subject (public read)
   const { data: subject } = await supabase
     .from('subjects')
     .select('*')
@@ -21,23 +20,7 @@ export default async function TopicPage({
 
   if (!subject) notFound()
 
-  // Check entitlement
-  const { data: entitlements } = await supabase
-    .from('entitlements')
-    .select('type, subject_id')
-    .eq('user_id', user.id)
-
-  const hasFull = entitlements?.some((e) => e.type === 'FULL') ?? false
-  const hasSubject = entitlements?.some(
-    (e) => e.type === 'SUBJECT' && e.subject_id === subject.id
-  ) ?? false
-  const hasAccess = hasFull || hasSubject
-
-  if (!hasAccess) {
-    redirect(`/app/subjects/${subjectSlug}`)
-  }
-
-  // Fetch topic
+  // Fetch topic (public read)
   const { data: topic } = await supabase
     .from('topics')
     .select('*')
@@ -47,21 +30,64 @@ export default async function TopicPage({
 
   if (!topic) notFound()
 
-  // Fetch all content in parallel
-  const [contentRes, tablesRes, diagramsRes, pyqsRes, quizzesRes] = await Promise.all([
-    supabase.from('topic_content').select('*').eq('topic_id', topic.id),
-    supabase.from('topic_tables').select('*').eq('topic_id', topic.id),
-    supabase.from('topic_diagrams').select('*').eq('topic_id', topic.id),
-    supabase.from('pyqs').select('*').eq('topic_id', topic.id).order('year', { ascending: false }),
-    supabase.from('quizzes').select('*, quiz_questions(*)').eq('topic_id', topic.id).order('quiz_no'),
-  ])
+  // Check entitlement (only if authenticated)
+  let hasAccess = false
+  if (user) {
+    const { data: entitlements } = await supabase
+      .from('entitlements')
+      .select('type, subject_id')
+      .eq('user_id', user.id)
+
+    const hasFull = entitlements?.some((e) => e.type === 'FULL') ?? false
+    const hasSubject = entitlements?.some(
+      (e) => e.type === 'SUBJECT' && e.subject_id === subject.id
+    ) ?? false
+    hasAccess = hasFull || hasSubject
+  }
+
+  // Fetch topic overview (short notes) — visible to all users
+  const { data: contentRows } = await supabase
+    .from('topic_content')
+    .select('language, short_notes_md, detailed_notes_md, flowchart_mermaid')
+    .eq('topic_id', topic.id)
+
+  // Premium-only content — only fetch when entitled
+  const [tablesRes, diagramsRes, pyqsRes, quizzesRes] = hasAccess
+    ? await Promise.all([
+        supabase.from('topic_tables').select('*').eq('topic_id', topic.id),
+        supabase.from('topic_diagrams').select('*').eq('topic_id', topic.id),
+        supabase
+          .from('pyqs')
+          .select('*')
+          .eq('topic_id', topic.id)
+          .order('year', { ascending: false }),
+        supabase
+          .from('quizzes')
+          .select('*, quiz_questions(*)')
+          .eq('topic_id', topic.id)
+          .order('quiz_no'),
+      ])
+    : [
+        // Free users: fetch only the first quiz for the 10-question free experience
+        { data: null },
+        { data: null },
+        { data: null },
+        await supabase
+          .from('quizzes')
+          .select('*, quiz_questions(*)')
+          .eq('topic_id', topic.id)
+          .eq('quiz_no', 1)
+          .limit(1),
+      ]
 
   return (
     <TopicPageClient
       subject={subject}
       topic={topic}
-      userId={user.id}
-      content={contentRes.data ?? []}
+      userId={user?.id ?? null}
+      isAuthenticated={!!user}
+      hasAccess={hasAccess}
+      content={contentRows ?? []}
       tables={tablesRes.data ?? []}
       diagrams={diagramsRes.data ?? []}
       pyqs={pyqsRes.data ?? []}

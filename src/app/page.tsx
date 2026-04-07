@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BookOpen, CheckCircle, Star, Zap, Brain, Award } from 'lucide-react'
+import { BookOpen, CheckCircle, Star, Zap, Brain, Award, Calendar, FileText, Clock } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
 const subjects = [
@@ -36,11 +36,16 @@ export default function LandingPage() {
             </div>
             <span className="font-bold text-lg">BioSciences Mastery</span>
           </div>
-          <Link href="/login">
-            <Button variant="outline" size="sm" className="border-white text-white hover:bg-white/10">
-              Login / Sign Up
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/gatb-2026" className="text-emerald-100 hover:text-white text-sm hidden sm:block font-medium">
+              GAT-B 2026 Info
+            </Link>
+            <Link href="/login">
+              <Button variant="outline" size="sm" className="border-white text-white hover:bg-white/10">
+                Login / Sign Up
+              </Button>
+            </Link>
+          </div>
         </nav>
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
@@ -106,6 +111,45 @@ export default function LandingPage() {
                 <p className="text-xs text-gray-400">{s.topics} topics</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* GAT-B 2026 Exam Info */}
+      <section className="py-20 bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 text-sm mb-4">
+              <Star className="w-4 h-4 text-yellow-300" />
+              GAT-B 2026 — Exam Approaching
+            </div>
+            <h2 className="text-3xl font-bold mb-3">GAT-B 2026 Exam Details</h2>
+            <p className="text-emerald-100">All the information you need for GAT-B 2026 preparation</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
+            {[
+              { icon: Calendar, title: 'Exam Date', value: 'June–July 2026', sub: 'Application active now' },
+              { icon: FileText, title: 'Exam Pattern', value: '65 MCQs • 175 Marks', sub: 'CBT mode • 3 hours' },
+              { icon: Clock, title: 'Marking Scheme', value: '+3 / −1 (Part B)', sub: 'Part A: +1, No negative' },
+            ].map(({ icon: Icon, title, value, sub }) => (
+              <div key={title} className="bg-white/10 border border-white/20 rounded-2xl p-6 text-center">
+                <div className="bg-white/20 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="font-bold text-lg mb-1">{value}</h3>
+                <p className="text-emerald-200 text-xs mb-1">{title}</p>
+                <p className="text-emerald-300 text-xs">{sub}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <Link href="/gatb-2026">
+              <Button className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-8">
+                View Full GAT-B 2026 Guide →
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

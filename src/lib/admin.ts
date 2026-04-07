@@ -1,13 +1,15 @@
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 
-export async function isAdmin(userId: string): Promise<boolean> {
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'jdbanna34@gmail.com'
+
+export async function isAdmin(userId: string, email?: string | null): Promise<boolean> {
+  // Fast path: hardcoded admin email
+  if (email && email === ADMIN_EMAIL) return true
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!url || !serviceKey) {
-    // Service role key not configured – treat as non-admin
-    return false
-  }
+  if (!url || !serviceKey) return false
 
   const supabase = createServiceClient(url, serviceKey)
   const { data } = await supabase

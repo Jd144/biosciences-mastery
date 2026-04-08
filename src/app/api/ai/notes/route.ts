@@ -7,7 +7,12 @@ import OpenAI from 'openai'
 const PROMPT_VERSION = 'v1'
 
 export async function POST(request: NextRequest) {
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  // 👉 Groq client (OpenAI compatible)
+  const groq = new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1',
+  })
+
   try {
     const supabase = await createClient()
     const {
@@ -25,7 +30,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'topicId is required' }, { status: 400 })
     }
 
-    // Check premium status (FULL entitlement = unlimited AI)
+    // Premium check
     const serviceClient = getServiceClient()
     const { data: fullEnt } = await serviceClient
       .from('entitlements')
@@ -33,9 +38,10 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .eq('type', 'FULL')
       .maybeSingle()
+
     const hasPremium = !!fullEnt
 
-    // Fetch topic + subject info
+    // Fetch topic
     const { data: topic, error: topicError } = await supabase
       .from('topics')
       .select('id, title, subject_id, subjects(name, slug)')
@@ -46,7 +52,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
     }
 
-    // Check cache first (unless regenerate requested)
+    // Cache check
     if (!regenerate) {
       const { data: cached } = await supabase
         .from('ai_notes_cache')
@@ -66,13 +72,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Rate-limit free users before calling OpenAI
+    // Rate limit
     if (!hasPremium) {
-      const { allowed, used, limit } = await checkAndIncrementAiUsage(user.id, 'notes', FREE_AI_LIMIT)
+      const { allowed, used, limit } = await checkAndIncrementAiUsage(
+        user.id,
+        'notes',
+        FREE_AI_LIMIT
+      )
+
       if (!allowed) {
         return NextResponse.json(
           {
-            error: `Daily AI limit reached (${used}/${limit}). Upgrade to Premium for unlimited access.`,
+            error: `Daily AI limit reached (${used}/${limit}). Upgrade to Premium.`,
             limitReached: true,
             used,
             limit,
@@ -82,41 +93,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate using OpenAI
+    // Language instruction
     const langInstruction =
       language === 'hi'
         ? 'Write in Hindi (Devanagari script).'
         : language === 'hinglish'
-        ? 'Write in Hinglish (mix of Hindi and English, use Roman script for Hindi words).'
+        ? 'Write in Hinglish (mix of Hindi and English, Roman script).'
         : 'Write in English.'
 
-    const subjectName = (topic.subjects as unknown as { name: string } | null)?.name ?? 'Biology'
+    const subjectName =
+      (topic.subjects as unknown as { name: string } | null)?.name ?? 'Biology'
 
-    const prompt = `You are an expert biology educator preparing study notes for GAT-B (Graduate Aptitude Test in Biotechnology) exam preparation.
+    const prompt = `You are an expert biology educator preparing study notes for GAT-B exam.
 
 ${langInstruction}
 
-Generate comprehensive study notes for the topic: "${topic.title}" from the subject "${subjectName}".
+Generate structured notes for topic: "${topic.title}" from subject "${subjectName}".
 
-Format your response as structured Markdown with:
-1. **Overview** — 2-3 line summary
-2. **Key Concepts** — bullet points of essential concepts
-3. **Detailed Explanation** — organized sections with clear headings
-4. **Important Points to Remember** — exam-focused bullet points
-5. **Common Exam Questions** — 3-5 typical question patterns for this topic
+Format:
+1. Overview (2-3 lines)
+2. Key Concepts (bullets)
+3. Detailed Explanation
+4. Important Points
+5. Common Exam Questions`
 
-Keep it concise but comprehensive, suitable for GAT-B level examination.`
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    // 👉 GROQ API CALL
+    const completion = await groq.chat.completions.create({
+      model: 'llama3-70b-8192', // 🔥 best Groq model
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 2000,
       temperature: 0.7,
+      max_tokens: 2000,
     })
 
     const contentMd = completion.choices[0]?.message?.content ?? ''
 
-    // Save to cache (upsert)
+    // Cache save
     await supabase.from('ai_notes_cache').upsert(
       {
         user_id: user.id,
@@ -135,6 +146,9 @@ Keep it concise but comprehensive, suitable for GAT-B level examination.`
     })
   } catch (error) {
     console.error('AI notes error:', error)
-    return NextResponse.json({ error: 'Failed to generate notes' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to generate notes' },
+      { status: 500 }
+    )
   }
 }

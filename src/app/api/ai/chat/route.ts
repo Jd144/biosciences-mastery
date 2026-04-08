@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getServiceClient } from '@/lib/admin'
 import { FREE_AI_LIMIT, checkAndIncrementAiUsage } from '@/lib/ai-limits'
-import GROQ from 'groq'
+import Groq from 'groq-sdk'
 
 export async function POST(request: NextRequest) {
-  const openai = new GROQ({ apiKey: process.env.GROQ_API_KEY })
+  const groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY,
+  })
+
   try {
     const supabase = await createClient()
     const {
@@ -16,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check premium status (FULL entitlement = unlimited AI)
+    // Premium check
     const serviceClient = getServiceClient()
     const { data: fullEnt } = await serviceClient
       .from('entitlements')
@@ -24,15 +27,21 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .eq('type', 'FULL')
       .maybeSingle()
+
     const hasPremium = !!fullEnt
 
-    // Rate-limit free users
+    // Rate limit
     if (!hasPremium) {
-      const { allowed, used, limit } = await checkAndIncrementAiUsage(user.id, 'chat', FREE_AI_LIMIT)
+      const { allowed, used, limit } = await checkAndIncrementAiUsage(
+        user.id,
+        'chat',
+        FREE_AI_LIMIT
+      )
+
       if (!allowed) {
         return NextResponse.json(
           {
-            error: `Daily AI limit reached (${used}/${limit}). Upgrade to Premium for unlimited access.`,
+            error: `Daily AI limit reached (${used}/${limit}). Upgrade to Premium.`,
             limitReached: true,
             used,
             limit,
@@ -46,11 +55,15 @@ export async function POST(request: NextRequest) {
     const { topicId, messages, language = 'en' } = body
 
     if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: 'messages array is required' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'messages array is required' },
+        { status: 400 }
+      )
     }
 
-    // Fetch topic context
-    let systemContext = 'You are an expert biology tutor for GAT-B exam preparation.'
+    // Topic context
+    let systemContext =
+      'You are an expert biology tutor for GAT-B exam preparation.'
 
     if (topicId) {
       const { data: topic } = await supabase
@@ -60,24 +73,29 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (topic) {
-        const subjectName = (topic.subjects as unknown as { name: string } | null)?.name ?? 'Biology'
-        systemContext = `You are an expert biology tutor for GAT-B (Graduate Aptitude Test in Biotechnology) exam preparation.
-You are helping a student understand the topic "${topic.title}" from "${subjectName}".
-Provide clear, accurate, exam-focused answers.`
+        const subjectName =
+          (topic.subjects as unknown as { name: string } | null)?.name ??
+          'Biology'
+
+        systemContext = `You are an expert biology tutor for GAT-B exam preparation.
+You are helping a student understand "${topic.title}" from "${subjectName}".
+Give clear, exam-focused answers.`
       }
     }
 
+    // Language control
     const langInstruction =
       language === 'hi'
         ? ' Respond in Hindi.'
         : language === 'hinglish'
-        ? ' Respond in Hinglish (mix of Hindi and English).'
+        ? ' Respond in Hinglish.'
         : ' Respond in English.'
 
     systemContext += langInstruction
 
+    // ✅ GROQ CALL (correct)
     const completion = await groq.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'llama3-70b-8192', // 🔥 correct model
       messages: [
         { role: 'system', content: systemContext },
         ...messages.slice(-10),
@@ -91,6 +109,9 @@ Provide clear, accurate, exam-focused answers.`
     return NextResponse.json({ reply })
   } catch (error) {
     console.error('AI chat error:', error)
-    return NextResponse.json({ error: 'Failed to get AI response' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to get AI response' },
+      { status: 500 }
+    )
   }
 }

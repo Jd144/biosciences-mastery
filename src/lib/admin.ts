@@ -1,34 +1,38 @@
-import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { isAdmin, getServiceClient } from '@/lib/admin'
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'jdbanna34@gmail.com'
-
-export async function isAdmin(userId: string, email?: string | null): Promise<boolean> {
-  // Fast path: hardcoded admin email
-  if (email && email === ADMIN_EMAIL) return true
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!url || !serviceKey) return false
-
-  const supabase = createServiceClient(url, serviceKey)
-  const { data } = await supabase
-    .from('admin_allowlist')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle()
-  return !!data
-}
-
-export function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!url || !serviceKey) {
-    throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY is not set. This client is only available server-side.'
-    )
+export async function GET() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || !(await isAdmin(user.id, user.email))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  return createServiceClient(url, serviceKey)
+  const { data, error } = await supabase
+    .from('subjects')
+    .select('*, topics(count)')
+    .order('order_index')
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || !(await isAdmin(user.id, user.email))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const body = await request.json()
+  const serviceSupabase = getServiceClient()
+  const { data, error } = await serviceSupabase
+    .from('subjects')
+    .insert(body)
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data, { status: 201 })
 }

@@ -10,15 +10,16 @@ export default function NewSubjectPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
+    setError('')
     const supabase = createClient()
-    const { error } = await supabase
+    const { error: dbError } = await supabase
       .from('subjects')
-      .insert({ name, slug })
-    if (error) {
-      setError(error.message)
+      .insert([{ name, slug }])
+    if (dbError) {
+      setError(dbError.message)
       setLoading(false)
     } else {
       router.push('/admin/subjects')
@@ -35,20 +36,25 @@ export default function NewSubjectPage() {
           <input
             type="text"
             value={name}
-            onChange={e => {
+            onChange={(e) => {
               setName(e.target.value)
-              setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))
+              setSlug(
+                e.target.value
+                  .toLowerCase()
+                  .replace(/\s+/g, '-')
+                  .replace(/[^a-z0-9-]/g, '')
+              )
             }}
             className="w-full border rounded px-3 py-2"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Slug (auto-fill)</label>
+          <label className="block text-sm font-medium mb-1">Slug</label>
           <input
             type="text"
             value={slug}
-            onChange={e => setSlug(e.target.value)}
+            onChange={(e) => setSlug(e.target.value)}
             className="w-full border rounded px-3 py-2"
             required
           />

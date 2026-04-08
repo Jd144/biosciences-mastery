@@ -2,16 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getServiceClient } from '@/lib/admin'
 import { FREE_AI_LIMIT, checkAndIncrementAiUsage } from '@/lib/ai-limits'
-import OpenAI from 'openai'
+import Groq from 'groq-sdk'
 
 const PROMPT_VERSION = 'v1'
 
 export async function POST(request: NextRequest) {
-  // 👉 Groq client (OpenAI compatible)
-import Groq from 'groq-sdk'
-const groq = new Groq({
+  const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY,
-})
+  })
 
   try {
     const supabase = await createClient()
@@ -93,7 +91,6 @@ const groq = new Groq({
       }
     }
 
-    // Language instruction
     const langInstruction =
       language === 'hi'
         ? 'Write in Hindi (Devanagari script).'
@@ -117,9 +114,8 @@ Format:
 4. Important Points
 5. Common Exam Questions`
 
-    // 👉 GROQ API CALL
     const completion = await groq.chat.completions.create({
-      model: 'llama3-70b-8192', // 🔥 best Groq model
+      model: 'llama3-70b-8192',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       max_tokens: 2000,
@@ -127,7 +123,6 @@ Format:
 
     const contentMd = completion.choices[0]?.message?.content ?? ''
 
-    // Cache save
     await supabase.from('ai_notes_cache').upsert(
       {
         user_id: user.id,

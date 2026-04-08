@@ -13,13 +13,11 @@ export default function NewSubjectPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     const res = await fetch('/api/admin/subjects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, slug }),
     })
-
     if (res.ok) {
       router.push('/admin/subjects')
       router.refresh()

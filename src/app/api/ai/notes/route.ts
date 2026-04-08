@@ -4,13 +4,13 @@ import { getServiceClient } from '@/lib/admin'
 import { FREE_AI_LIMIT, checkAndIncrementAiUsage } from '@/lib/ai-limits'
 import Groq from 'groq-sdk'
 
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+})
+
 const PROMPT_VERSION = 'v1'
 
 export async function POST(request: NextRequest) {
-  const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY,
-  })
-
   try {
     const supabase = await createClient()
     const {
@@ -28,7 +28,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'topicId is required' }, { status: 400 })
     }
 
-    // Premium check
     const serviceClient = getServiceClient()
     const { data: fullEnt } = await serviceClient
       .from('entitlements')
@@ -39,7 +38,6 @@ export async function POST(request: NextRequest) {
 
     const hasPremium = !!fullEnt
 
-    // Fetch topic
     const { data: topic, error: topicError } = await supabase
       .from('topics')
       .select('id, title, subject_id, subjects(name, slug)')
@@ -50,7 +48,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
     }
 
-    // Cache check
     if (!regenerate) {
       const { data: cached } = await supabase
         .from('ai_notes_cache')
@@ -70,7 +67,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Rate limit
     if (!hasPremium) {
       const { allowed, used, limit } = await checkAndIncrementAiUsage(
         user.id,

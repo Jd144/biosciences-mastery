@@ -8,10 +8,10 @@ const PROMPT_VERSION = 'v1'
 
 export async function POST(request: NextRequest) {
   // 👉 Groq client (OpenAI compatible)
-  const groq = new OpenAI({
+import Groq from 'groq-sdk'
+const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY,
-    baseURL: 'https://api.groq.com/openai/v1',
-  })
+})
 
   try {
     const supabase = await createClient()

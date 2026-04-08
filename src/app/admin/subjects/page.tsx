@@ -21,3 +21,6 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+export default function SubjectsPage() {
+  return <div>Subjects</div>
+}

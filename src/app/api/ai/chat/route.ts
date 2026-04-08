@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getServiceClient } from '@/lib/admin'
 import { FREE_AI_LIMIT, checkAndIncrementAiUsage } from '@/lib/ai-limits'
-import OpenAI from 'openai'
+import GROQ from 'groq'
 
 export async function POST(request: NextRequest) {
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  const openai = new GROQ({ apiKey: process.env.GROQ_API_KEY })
   try {
     const supabase = await createClient()
     const {
@@ -76,7 +76,7 @@ Provide clear, accurate, exam-focused answers.`
 
     systemContext += langInstruction
 
-    const completion = await openai.chat.completions.create({
+    const completion = await groq.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemContext },

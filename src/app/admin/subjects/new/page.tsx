@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 
 export default function NewSubjectPage() {
   const router = useRouter()
@@ -14,16 +13,20 @@ export default function NewSubjectPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const supabase = createClient()
-    const { error: dbError } = await supabase
-      .from('subjects')
-      .insert([{ name, slug }])
-    if (dbError) {
-      setError(dbError.message)
-      setLoading(false)
-    } else {
+
+    const res = await fetch('/api/admin/subjects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, slug }),
+    })
+
+    if (res.ok) {
       router.push('/admin/subjects')
       router.refresh()
+    } else {
+      const d = await res.json()
+      setError(d.error || 'Failed')
+      setLoading(false)
     }
   }
 
@@ -32,18 +35,13 @@ export default function NewSubjectPage() {
       <h1 className="text-2xl font-bold mb-6">Add New Subject</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Subject Name</label>
+          <label className="block text-sm font-medium mb-1">Name</label>
           <input
             type="text"
             value={name}
             onChange={(e) => {
               setName(e.target.value)
-              setSlug(
-                e.target.value
-                  .toLowerCase()
-                  .replace(/\s+/g, '-')
-                  .replace(/[^a-z0-9-]/g, '')
-              )
+              setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))
             }}
             className="w-full border rounded px-3 py-2"
             required

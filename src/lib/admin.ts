@@ -1,38 +1,43 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { isAdmin, getServiceClient } from '@/lib/admin'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
-export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdmin(user.id, user.email))) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'jdbanna34@gmail.com'
+
+export async function isAdmin(userId: string, email?: string | null): Promise<boolean> {
+  // Email se check karo pehle
+  if (email && email === ADMIN_EMAIL) return true
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !serviceKey) return false
+
+  const supabase = createServiceClient(url, serviceKey)
+  
+  // user_id se check karo
+  const { data: byUserId } = await supabase
+    .from('admin_allowlist')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  
+  if (byUserId) return true
+
+  // email se bhi check karo allowlist mein
+  if (email) {
+    const { data: byEmail } = await supabase
+      .from('admin_allowlist')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle()
+    if (byEmail) return true
   }
 
-  const { data, error } = await supabase
-    .from('subjects')
-    .select('*, topics(count)')
-    .order('order_index')
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  return false
 }
 
-export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !(await isAdmin(user.id, user.email))) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+export function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  const body = await request.json()
-  const serviceSupabase = getServiceClient()
-  const { data, error } = await serviceSupabase
-    .from('subjects')
-    .insert(body)
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data, { status: 201 })
-}
+  if (!url || !serviceKey) {
+    throw new Erro

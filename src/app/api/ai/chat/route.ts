@@ -4,11 +4,11 @@ import { getServiceClient } from '@/lib/admin'
 import { FREE_AI_LIMIT, checkAndIncrementAiUsage } from '@/lib/ai-limits'
 import Groq from 'groq-sdk'
 
-export async function POST(request: NextRequest) {
-  const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY,
-  })
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+})
 
+export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     const {
@@ -19,7 +19,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Premium check
     const serviceClient = getServiceClient()
     const { data: fullEnt } = await serviceClient
       .from('entitlements')
@@ -30,14 +29,12 @@ export async function POST(request: NextRequest) {
 
     const hasPremium = !!fullEnt
 
-    // Rate limit
     if (!hasPremium) {
       const { allowed, used, limit } = await checkAndIncrementAiUsage(
         user.id,
         'chat',
         FREE_AI_LIMIT
       )
-
       if (!allowed) {
         return NextResponse.json(
           {
@@ -61,7 +58,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Topic context
     let systemContext =
       'You are an expert biology tutor for GAT-B exam preparation.'
 
@@ -74,16 +70,13 @@ export async function POST(request: NextRequest) {
 
       if (topic) {
         const subjectName =
-          (topic.subjects as unknown as { name: string } | null)?.name ??
-          'Biology'
-
+          (topic.subjects as unknown as { name: string } | null)?.name ?? 'Biology'
         systemContext = `You are an expert biology tutor for GAT-B exam preparation.
 You are helping a student understand "${topic.title}" from "${subjectName}".
 Give clear, exam-focused answers.`
       }
     }
 
-    // Language control
     const langInstruction =
       language === 'hi'
         ? ' Respond in Hindi.'
@@ -93,9 +86,8 @@ Give clear, exam-focused answers.`
 
     systemContext += langInstruction
 
-    // ✅ GROQ CALL (correct)
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile', // 🔥 correct model
+      model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: systemContext },
         ...messages.slice(-10),
@@ -105,7 +97,6 @@ Give clear, exam-focused answers.`
     })
 
     const reply = completion.choices[0]?.message?.content ?? ''
-
     return NextResponse.json({ reply })
   } catch (error) {
     console.error('AI chat error:', error)

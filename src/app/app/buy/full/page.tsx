@@ -1,11 +1,11 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Crown, CheckCircle, Tag, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
-import { PRICES } from '@/lib/utils'
+// import { PRICES } from '@/lib/utils'
 
 declare global {
   interface Window {
@@ -23,8 +23,18 @@ export default function BuyFullPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const originalAmount = PRICES.FULL
+  const [originalAmount, setOriginalAmount] = useState(99900)
   const finalAmount = Math.max(originalAmount - discountPaise, 100)
+
+  // Fetch dynamic price
+  useEffect(() => {
+    fetch('/api/plans')
+      .then(r => r.json())
+      .then(prices => {
+        if (prices.FULL) setOriginalAmount(Math.round(Number(prices.FULL) * 100))
+      })
+      .catch(() => {})
+  }, [])
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return

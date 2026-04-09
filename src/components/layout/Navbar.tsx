@@ -56,13 +56,29 @@ export default function Navbar({ isAdmin }: NavbarProps) {
               GATE B 2026
             </Link>
             {isAdmin && (
-              <Link
-                href="/admin"
-                className="flex items-center gap-1.5 text-purple-600 hover:text-purple-700 text-sm font-medium"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                Admin
-              </Link>
+              <>
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-1.5 text-purple-600 hover:text-purple-700 text-sm font-medium"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  Admin
+                </Link>
+                <Link
+                  href="/admin/plans"
+                  className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Plans Pricing
+                </Link>
+                <Link
+                  href="/admin/entitlements"
+                  className="flex items-center gap-1.5 text-orange-600 hover:text-orange-700 text-sm font-medium"
+                >
+                  <User className="w-4 h-4" />
+                  Entitlements
+                </Link>
+              </>
             )}
           </div>
 

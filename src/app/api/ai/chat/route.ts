@@ -106,6 +106,15 @@ Give clear, exam-focused answers.`
 
     const reply = completion.choices[0]?.message?.content ?? ''
 
+    // Save chat history
+    try {
+      await supabase.from('ai_chat_history').insert({
+        user_id: user.id,
+        topic_id: topicId || null,
+        messages: JSON.stringify([...messages.slice(-10), { role: 'assistant', content: reply }]),
+      })
+    } catch {}
+
     return NextResponse.json({ reply })
   } catch (error) {
     console.error('AI chat error:', error)

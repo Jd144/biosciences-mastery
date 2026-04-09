@@ -7,6 +7,7 @@ interface Subject {
   name: string
   slug: string
   order_index: number
+  price_inr?: number
 }
 
 export default function SubjectsPage() {
@@ -39,6 +40,8 @@ export default function SubjectsPage() {
               <th className="text-left p-4">#</th>
               <th className="text-left p-4">Name</th>
               <th className="text-left p-4">Slug</th>
+              <th className="text-left p-4">Price (INR)</th>
+              <th className="text-left p-4">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -47,6 +50,18 @@ export default function SubjectsPage() {
                 <td className="p-4 text-gray-400">{i + 1}</td>
                 <td className="p-4 font-medium">{s.name}</td>
                 <td className="p-4 text-gray-400 font-mono text-sm">{s.slug}</td>
+                <td className="p-4">₹{s.price_inr?.toFixed(2) ?? '0.00'}</td>
+                <td className="p-4 flex gap-2">
+                  <Link href={`/admin/subjects/${s.id}/edit`} className="text-blue-600 hover:underline">Edit</Link>
+                  <button
+                    className="text-red-600 hover:underline ml-2"
+                    onClick={async () => {
+                      if (!confirm('Delete this subject? This cannot be undone.')) return;
+                      await fetch(`/api/admin/subjects/${s.id}`, { method: 'DELETE' });
+                      setSubjects(subjects.filter(sub => sub.id !== s.id));
+                    }}
+                  >Delete</button>
+                </td>
               </tr>
             ))}
           </tbody>

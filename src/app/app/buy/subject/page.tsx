@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { BookOpen, CheckCircle, Tag, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
-import { PRICES } from '@/lib/utils'
+// import { PRICES } from '@/lib/utils'
 
 declare global {
   interface Window {
@@ -27,8 +27,18 @@ export default function BuySubjectPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const originalAmount = PRICES.SINGLE_SUBJECT
+  const [originalAmount, setOriginalAmount] = useState(44900)
   const finalAmount = Math.max(originalAmount - discountPaise, 100)
+
+  // Fetch dynamic price
+  useEffect(() => {
+    fetch('/api/plans')
+      .then(r => r.json())
+      .then(prices => {
+        if (prices.SINGLE_SUBJECT) setOriginalAmount(Math.round(Number(prices.SINGLE_SUBJECT) * 100))
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!subjectSlug) return

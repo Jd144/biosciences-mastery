@@ -1,27 +1,43 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 
-export default function NewSubjectPage() {
+export default function EditSubjectPage() {
   const router = useRouter()
+  const params = useParams()
+  const subjectId = params?.id as string
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [price, setPrice] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!subjectId) return
+    fetch(`/api/admin/subjects/${subjectId}`)
+      .then(r => r.json())
+      .then(d => {
+        setName(d.name || '')
+        setSlug(d.slug || '')
+        setPrice(d.price_inr?.toString() || '')
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [subjectId])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setLoading(true)
+    setSaving(true)
     setError('')
     const priceNum = parseFloat(price)
     if (isNaN(priceNum) || priceNum < 0) {
       setError('Price must be a valid number')
-      setLoading(false)
+      setSaving(false)
       return
     }
-    const res = await fetch('/api/admin/subjects', {
-      method: 'POST',
+    const res = await fetch(`/api/admin/subjects/${subjectId}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, slug, price_inr: priceNum }),
     })
@@ -31,23 +47,22 @@ export default function NewSubjectPage() {
     } else {
       const d = await res.json()
       setError(d.error || 'Failed')
-      setLoading(false)
+      setSaving(false)
     }
   }
 
+  if (loading) return <div className="p-8">Loading...</div>
+
   return (
     <div className="p-8 max-w-md">
-      <h1 className="text-2xl font-bold mb-6">Add New Subject</h1>
+      <h1 className="text-2xl font-bold mb-6">Edit Subject</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Name</label>
           <input
             type="text"
             value={name}
-            onChange={(e) => {
-              setName(e.target.value)
-              setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))
-            }}
+            onChange={e => setName(e.target.value)}
             className="w-full border rounded px-3 py-2"
             required
           />
@@ -57,7 +72,7 @@ export default function NewSubjectPage() {
           <input
             type="text"
             value={slug}
-            onChange={(e) => setSlug(e.target.value)}
+            onChange={e => setSlug(e.target.value)}
             className="w-full border rounded px-3 py-2"
             required
           />
@@ -69,7 +84,7 @@ export default function NewSubjectPage() {
             min="0"
             step="0.01"
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            onChange={e => setPrice(e.target.value)}
             className="w-full border rounded px-3 py-2"
             required
           />
@@ -77,10 +92,10 @@ export default function NewSubjectPage() {
         {error && <p className="text-red-500 text-sm">{error}</p>}
         <button
           type="submit"
-          disabled={loading}
-          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+          disabled={saving}
+          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? 'Saving...' : 'Add Subject'}
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
     </div>

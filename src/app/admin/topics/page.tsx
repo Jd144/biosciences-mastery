@@ -76,7 +76,7 @@ export default async function AdminTopicsPage({ searchParams }: Props) {
                 <td className="px-4 py-3 font-medium text-gray-800">{t.title}</td>
                 <td className="px-4 py-3 text-gray-500 text-xs">{(t.subjects as unknown as { name: string } | null)?.name}</td>
                 <td className="px-4 py-3 text-gray-400 font-mono text-xs">{t.slug}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 flex gap-2">
                   <Link
                     href={`/admin/content?topicId=${t.id}`}
                     className="text-blue-600 hover:underline text-xs font-medium mr-3"
@@ -91,10 +91,24 @@ export default async function AdminTopicsPage({ searchParams }: Props) {
                   </Link>
                   <Link
                     href={`/admin/quizzes?topicId=${t.id}`}
-                    className="text-purple-600 hover:underline text-xs font-medium"
+                    className="text-purple-600 hover:underline text-xs font-medium mr-3"
                   >
                     Quizzes
                   </Link>
+                  <Link
+                    href={`/admin/topics/${t.id}/edit`}
+                    className="text-green-600 hover:underline text-xs font-medium mr-2"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    className="text-red-600 hover:underline text-xs font-medium"
+                    onClick={async () => {
+                      if (!confirm('Delete this topic? This cannot be undone.')) return;
+                      await fetch(`/api/admin/topics/${t.id}`, { method: 'DELETE' });
+                      window.location.reload();
+                    }}
+                  >Delete</button>
                 </td>
               </tr>
             ))}

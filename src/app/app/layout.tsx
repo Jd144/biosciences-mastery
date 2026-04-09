@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
+import ClientAnnouncementPopup from './ClientAnnouncementPopup'
 import { isAdmin } from '@/lib/admin'
 
 export default async function AppLayout({
@@ -20,6 +21,7 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar isAdmin={adminStatus} />
+      <ClientAnnouncementPopup userId={user?.id} />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>

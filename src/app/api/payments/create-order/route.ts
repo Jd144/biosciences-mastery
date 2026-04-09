@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Razorpay from 'razorpay'
 import { createClient } from '@/lib/supabase/server'
 import { getServiceClient } from '@/lib/admin'
-import { PRICES } from '@/lib/utils'
+// import { PRICES } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
 
@@ -46,8 +46,20 @@ const razorpay = new Razorpay({
     let subjectId: string | null = null
     let amountPaise: number
 
+    // Fetch plan prices from DB
+    const { data: plansData, error: plansError } = await supabase
+      .from('plans')
+      .select('name, price_inr')
+    if (plansError || !plansData) {
+      return NextResponse.json({ error: 'Could not fetch plan prices' }, { status: 500 })
+    }
+    const planPrices: Record<string, number> = {}
+    for (const plan of plansData) {
+      planPrices[plan.name] = Math.round(Number(plan.price_inr) * 100)
+    }
+
     if (planType === 'FULL') {
-      amountPaise = PRICES.FULL
+      amountPaise = planPrices.FULL ?? 99900
 
       const { data: existing } = await supabase
         .from('entitlements')
@@ -82,7 +94,7 @@ const razorpay = new Razorpay({
       }
 
       subjectId = subject.id
-      amountPaise = PRICES.SINGLE_SUBJECT
+      amountPaise = planPrices.SINGLE_SUBJECT ?? 44900
 
       const { data: fullEntitlement } = await supabase
         .from('entitlements')

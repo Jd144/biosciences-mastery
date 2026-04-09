@@ -1,19 +1,17 @@
+
 import Link from 'next/link'
 import { BookOpen, CheckCircle, Star, Zap, Brain, Award } from 'lucide-react'
 import Button from '@/components/ui/Button'
+import { useEffect, useState } from 'react'
 
-const subjects = [
-  { emoji: '🧪', name: 'Biochemistry', topics: 6 },
-  { emoji: '🦠', name: 'Microbiology', topics: 7 },
-  { emoji: '🔬', name: 'Cell Biology', topics: 4 },
-  { emoji: '🧬', name: 'Molecular Biology & Genetics', topics: 12 },
-  { emoji: '🔭', name: 'Bioanalytical Techniques', topics: 6 },
-  { emoji: '🛡️', name: 'Immunology', topics: 12 },
-  { emoji: '💻', name: 'Bioinformatics', topics: 5 },
-  { emoji: '🧫', name: 'Recombinant DNA Technology', topics: 12 },
-  { emoji: '🌱', name: 'Plant Biotechnology', topics: 14 },
-  { emoji: '🐭', name: 'Animal Biotechnology & Bioprocessing', topics: 23 },
-]
+type Subject = {
+  id: string
+  slug: string
+  name: string
+  price_inr: number
+  topics?: { count: number }[]
+  emoji?: string
+}
 
 const features = [
   { icon: BookOpen, title: 'Comprehensive Notes', desc: 'Short + detailed notes for every topic' },
@@ -24,7 +22,39 @@ const features = [
   { icon: CheckCircle, title: 'Lifetime Access', desc: 'Pay once, access forever — no subscription' },
 ]
 
+const subjectEmojis: Record<string, string> = {
+  'Biochemistry': '🧪',
+  'Microbiology': '🦠',
+  'Cell Biology': '🔬',
+  'Molecular Biology & Genetics': '🧬',
+  'Bioanalytical Techniques': '🔭',
+  'Immunology': '🛡️',
+  'Bioinformatics': '💻',
+  'Recombinant DNA Technology': '🧫',
+  'Plant Biotechnology': '🌱',
+  'Animal Biotechnology & Bioprocessing': '🐭',
+}
+
 export default function LandingPage() {
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/subjects')
+      .then(res => res.json())
+      .then(data => {
+        // Attach emoji if available
+        setSubjects(
+          (data || []).map((s: Subject) => ({
+            ...s,
+            emoji: subjectEmojis[s.name] || '📚',
+          }))
+        )
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero */}
@@ -98,15 +128,20 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">All 10 GAT-B Subjects Covered</h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {subjects.map((s) => (
-              <div key={s.name} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm text-center">
-                <div className="text-3xl mb-2">{s.emoji}</div>
-                <h3 className="font-semibold text-gray-800 text-sm mb-1">{s.name}</h3>
-                <p className="text-xs text-gray-400">{s.topics} topics</p>
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="text-center py-10">Loading subjects...</div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {subjects.map((s) => (
+                <div key={s.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm text-center">
+                  <div className="text-3xl mb-2">{s.emoji}</div>
+                  <h3 className="font-semibold text-gray-800 text-sm mb-1">{s.name}</h3>
+                  <p className="text-xs text-gray-400">{(s.topics?.[0]?.count ?? 0)} topics</p>
+                  <div className="mt-2 text-lg font-bold text-emerald-700">₹{s.price_inr}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -121,7 +156,9 @@ export default function LandingPage() {
             {/* Single Subject */}
             <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 shadow-sm">
               <h3 className="text-lg font-bold text-gray-700 mb-2">Single Subject</h3>
-              <div className="text-5xl font-extrabold text-gray-900 mb-1">₹449</div>
+              <div className="text-5xl font-extrabold text-gray-900 mb-1">
+                ₹{subjects.length > 0 ? subjects.reduce((min, s) => s.price_inr < min ? s.price_inr : min, subjects[0].price_inr) : 0}
+              </div>
               <p className="text-gray-500 text-sm mb-6">per subject • lifetime</p>
               <ul className="space-y-3 mb-8">
                 {['Complete notes', 'Flowcharts & diagrams', 'Official PYQ bank', '10 quizzes × 30 questions', 'AI Doubt Solver', 'AI Notes Generator'].map((item) => (

@@ -95,7 +95,7 @@ Give clear, exam-focused answers.`
 
     // ✅ GROQ CALL (correct)
     const completion = await groq.chat.completions.create({
-      model: 'llama3-70b-8192', // 🔥 correct model
+      model: 'llama-3.3-70b-versatile', // 🔥 correct model
       messages: [
         { role: 'system', content: systemContext },
         ...messages.slice(-10),

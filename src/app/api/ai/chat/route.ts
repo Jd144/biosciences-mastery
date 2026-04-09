@@ -97,7 +97,6 @@ Give clear, exam-focused answers.`
     })
 
     const reply = completion.choices[0]?.message?.content ?? ''
-<<<<<<< HEAD
 
     // Save chat history
     try {
@@ -108,8 +107,6 @@ Give clear, exam-focused answers.`
       })
     } catch {}
 
-=======
->>>>>>> 3d372e5bacb4da2407f1bb5b58906c3128e17988
     return NextResponse.json({ reply })
   } catch (error) {
     console.error('AI chat error:', error)

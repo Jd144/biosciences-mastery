@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
-import { BookOpen, LogOut, User, LayoutDashboard, ShieldCheck, FlaskConical } from 'lucide-react'
+import ThemeToggle from '@/components/ThemeToggle'
+import { BookOpen, LogOut, LayoutDashboard, ShieldCheck, FlaskConical } from 'lucide-react'
 
 interface NavbarProps {
   isAdmin?: boolean
@@ -21,7 +22,13 @@ export default function Navbar({ isAdmin }: NavbarProps) {
   }
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <nav
+      className="sticky top-0 z-50 border-b transition-all duration-200"
+      style={{
+        background: 'var(--nav-bg)',
+        borderColor: 'var(--nav-border)',
+      }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -29,28 +36,33 @@ export default function Navbar({ isAdmin }: NavbarProps) {
             <div className="bg-emerald-600 text-white p-1.5 rounded-lg">
               <BookOpen className="w-5 h-5" />
             </div>
-            <span className="font-bold text-gray-900">BioSciences Mastery</span>
+            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>
+              BioSciences Mastery
+            </span>
           </Link>
 
           {/* Nav Links */}
           <div className="hidden md:flex items-center gap-6">
             <Link
               href="/app/dashboard"
-              className="flex items-center gap-1.5 text-gray-600 hover:text-emerald-600 text-sm font-medium"
+              className="flex items-center gap-1.5 text-sm font-medium hover:text-emerald-600 transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
             >
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
             </Link>
             <Link
               href="/app/subjects"
-              className="flex items-center gap-1.5 text-gray-600 hover:text-emerald-600 text-sm font-medium"
+              className="flex items-center gap-1.5 text-sm font-medium hover:text-emerald-600 transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
             >
               <BookOpen className="w-4 h-4" />
               Subjects
             </Link>
             <Link
               href="/app/gatb"
-              className="flex items-center gap-1.5 text-gray-600 hover:text-emerald-600 text-sm font-medium"
+              className="flex items-center gap-1.5 text-sm font-medium hover:text-emerald-600 transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
             >
               <FlaskConical className="w-4 h-4" />
               GATE B 2026
@@ -68,12 +80,14 @@ export default function Navbar({ isAdmin }: NavbarProps) {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link href="/app/buy/full">
               <Button size="sm" variant="outline">Upgrade ₹999</Button>
             </Link>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 text-gray-500 hover:text-red-600 text-sm"
+              className="flex items-center gap-1.5 text-sm hover:text-red-600 transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Logout</span>

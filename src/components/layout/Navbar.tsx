@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import ThemeToggle from '@/components/ThemeToggle'
-import { BookOpen, LogOut, LayoutDashboard, ShieldCheck, FlaskConical } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, ShieldCheck, FlaskConical, User } from 'lucide-react'
 
 interface NavbarProps {
   isAdmin?: boolean

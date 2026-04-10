@@ -33,9 +33,8 @@ export default async function SubjectsPage() {
     .eq('user_id', user.id)
 
   // Prices from database
-  const { data: plans } = await supabase
-    .from('plans')
-    .select('name, price_inr')
+  const plansRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('.supabase.co', '') || ''}/api/admin/plans`, { cache: 'no-store' })
+const plans = plansRes.ok ? await plansRes.json() : []
 
   const fullPrice = plans?.find(p => p.name === 'Full Course')?.price_inr ?? 999
   const subjectPrice = plans?.find(p => p.name === 'Single Subject')?.price_inr ?? 449

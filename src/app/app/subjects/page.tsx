@@ -21,18 +21,24 @@ export default async function SubjectsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch all subjects with topic count
   const { data: subjects } = await supabase
     .from('subjects')
     .select('*, topics(count)')
     .eq('is_active', true)
     .order('order_index')
 
-  // Fetch entitlements
   const { data: entitlements } = await supabase
     .from('entitlements')
     .select('type, subject_id')
     .eq('user_id', user.id)
+
+  // Prices from database
+  const { data: plans } = await supabase
+    .from('plans')
+    .select('name, price_inr')
+
+  const fullPrice = plans?.find(p => p.name === 'Full Course')?.price_inr ?? 999
+  const subjectPrice = plans?.find(p => p.name === 'Single Subject')?.price_inr ?? 449
 
   const hasFull = entitlements?.some((e) => e.type === 'FULL') ?? false
   const ownedSubjectIds = new Set(
@@ -51,7 +57,7 @@ export default async function SubjectsPage() {
             href="/app/buy/full"
             className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg"
           >
-            Unlock All ₹999
+            Unlock All ₹{fullPrice}
           </Link>
         )}
       </div>
@@ -102,13 +108,13 @@ export default async function SubjectsPage() {
                       href={`/app/buy/subject?subject=${subject.slug}`}
                       className="flex-1 text-center bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 rounded-lg transition-colors"
                     >
-                      Buy ₹449
+                      Buy ₹{subjectPrice}
                     </Link>
                     <Link
                       href="/app/buy/full"
                       className="flex-1 text-center border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50 text-sm font-medium py-2 rounded-lg transition-colors"
                     >
-                      Full ₹999
+                      Full ₹{fullPrice}
                     </Link>
                   </div>
                 )}

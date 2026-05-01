@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import ThemeToggle from '@/components/ThemeToggle'
-import { BookOpen, LogOut, LayoutDashboard, ShieldCheck, FlaskConical, User } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, ShieldCheck, FlaskConical, User, GraduationCap } from 'lucide-react'
 
 interface NavbarProps {
   isAdmin?: boolean
@@ -66,6 +66,14 @@ export default function Navbar({ isAdmin }: NavbarProps) {
             >
               <FlaskConical className="w-4 h-4" />
               GATE B 2026
+            </Link>
+            <Link
+              href="/app/mock-tests"
+              className="flex items-center gap-1.5 text-sm font-medium hover:text-emerald-600 transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <GraduationCap className="w-4 h-4" />
+              Mock Tests
             </Link>
             {isAdmin && (
               <>

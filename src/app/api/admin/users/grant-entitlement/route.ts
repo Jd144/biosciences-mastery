@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
     user_id: userId,
     type,
     subject_id: type === 'SUBJECT' ? subjectId : null,
-    is_free: true
   }).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)

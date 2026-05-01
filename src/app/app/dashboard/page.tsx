@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, Crown, Sparkles, Lock, FlaskConical, Calendar, ChevronRight } from 'lucide-react'
+import { BookOpen, Crown, Sparkles, Lock, FlaskConical, Calendar, ChevronRight, GraduationCap } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 
 export default async function DashboardPage() {
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* GATE B 2026 Banner */}
-      <div className="bg-gradient-to-br from-emerald-700 to-teal-600 rounded-2xl p-6 mb-8 text-white">
+      <div className="bg-gradient-to-br from-emerald-700 to-teal-600 rounded-2xl p-6 mb-4 text-white">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="bg-white/20 p-3 rounded-xl shrink-0">
@@ -142,6 +142,32 @@ export default async function DashboardPage() {
             className="shrink-0 flex items-center gap-2 bg-white text-emerald-700 hover:bg-emerald-50 font-semibold text-sm px-5 py-2.5 rounded-lg transition-colors"
           >
             View Guide <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Mock Tests Banner */}
+      <div className="bg-gradient-to-br from-purple-700 to-indigo-600 rounded-2xl p-6 mb-8 text-white">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="bg-white/20 p-3 rounded-xl shrink-0">
+              <GraduationCap className="w-6 h-6 text-yellow-300" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-2 py-0.5 rounded-full">NEW</span>
+                <p className="font-bold text-lg">GATE BT Mock Tests</p>
+              </div>
+              <p className="text-purple-100 text-sm">
+                5 Sets × 5 Full-length Mock Tests. 65 questions, 100 marks, 3 hours. Real exam pattern with negative marking.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/app/mock-tests"
+            className="shrink-0 flex items-center gap-2 bg-white text-purple-700 hover:bg-purple-50 font-semibold text-sm px-5 py-2.5 rounded-lg transition-colors"
+          >
+            Start Mock Test <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
       </div>

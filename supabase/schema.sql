@@ -324,3 +324,86 @@ CREATE POLICY "Service role manages code_attempts" ON public.code_verification_a
 CREATE INDEX IF NOT EXISTS idx_code_attempts_user_time ON public.code_verification_attempts(user_id, attempted_at);
 CREATE INDEX IF NOT EXISTS idx_access_codes_email ON public.access_codes(assigned_email);
 CREATE INDEX IF NOT EXISTS idx_user_code_access_user ON public.user_code_access(user_id);
+
+-- ============================================================
+-- MOCK TEST SYSTEM
+-- GATE BT Exam Pattern: 5 Sets × 5 Tests, 65 Q, 100 marks, 3 hours
+-- ============================================================
+
+-- Mock Test Sets (5 total)
+CREATE TABLE IF NOT EXISTS public.mock_test_sets (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  set_no      INT NOT NULL CHECK (set_no >= 1 AND set_no <= 5),
+  title       TEXT NOT NULL,
+  description TEXT,
+  is_active   BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (set_no)
+);
+
+-- Mock Tests (5 per set)
+CREATE TABLE IF NOT EXISTS public.mock_tests (
+  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  set_id           UUID NOT NULL REFERENCES public.mock_test_sets(id) ON DELETE CASCADE,
+  test_no          INT NOT NULL CHECK (test_no >= 1 AND test_no <= 5),
+  title            TEXT NOT NULL,
+  description      TEXT,
+  duration_minutes INT NOT NULL DEFAULT 180,
+  total_marks      INT NOT NULL DEFAULT 100,
+  is_active        BOOLEAN NOT NULL DEFAULT true,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (set_id, test_no)
+);
+
+-- Mock Test Questions (GATE BT pattern)
+-- Section GA: General Aptitude (10 Q)
+-- Section BT: Biotechnology Core (55 Q)
+-- marks: 1 or 2; negative_marks stored as text like '-0.33' or '-0.67'
+CREATE TABLE IF NOT EXISTS public.mock_test_questions (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  test_id        UUID NOT NULL REFERENCES public.mock_tests(id) ON DELETE CASCADE,
+  question_no    INT NOT NULL,
+  section        TEXT NOT NULL DEFAULT 'BT' CHECK (section IN ('GA', 'BT')),
+  question       TEXT NOT NULL,
+  options        JSONB NOT NULL DEFAULT '{"A":"","B":"","C":"","D":""}'::JSONB,
+  answer         TEXT NOT NULL CHECK (answer IN ('A', 'B', 'C', 'D')),
+  marks          INT NOT NULL DEFAULT 1 CHECK (marks IN (1, 2)),
+  explanation    TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (test_id, question_no)
+);
+
+-- Mock Test Attempts (one per user per test)
+CREATE TABLE IF NOT EXISTS public.mock_test_attempts (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  test_id      UUID NOT NULL REFERENCES public.mock_tests(id) ON DELETE CASCADE,
+  user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  answers      JSONB NOT NULL DEFAULT '{}'::JSONB,
+  score        NUMERIC(7,3),
+  max_score    INT,
+  time_taken_seconds INT,
+  started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  submitted_at TIMESTAMPTZ,
+  UNIQUE (test_id, user_id)
+);
+
+ALTER TABLE public.mock_test_sets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mock_tests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mock_test_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mock_test_attempts ENABLE ROW LEVEL SECURITY;
+
+-- Public read for sets and tests (catalog)
+CREATE POLICY "Anyone can read mock_test_sets" ON public.mock_test_sets FOR SELECT USING (is_active = true);
+CREATE POLICY "Anyone can read mock_tests" ON public.mock_tests FOR SELECT USING (is_active = true);
+
+-- Authenticated users can read questions
+CREATE POLICY "Authenticated can read mock_test_questions" ON public.mock_test_questions FOR SELECT TO authenticated USING (true);
+
+-- Users manage only their own attempts
+CREATE POLICY "Users can read own mock_test_attempts" ON public.mock_test_attempts FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own mock_test_attempts" ON public.mock_test_attempts FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own mock_test_attempts" ON public.mock_test_attempts FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS idx_mock_test_questions_test_id ON public.mock_test_questions(test_id);
+CREATE INDEX IF NOT EXISTS idx_mock_test_attempts_user ON public.mock_test_attempts(user_id);
+CREATE INDEX IF NOT EXISTS idx_mock_tests_set_id ON public.mock_tests(set_id);

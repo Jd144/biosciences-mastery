@@ -3,6 +3,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Clock, ChevronLeft, ChevronRight, Flag, CheckCircle } from 'lucide-react'
 
+// GATE BT negative marking constants
+const NEG_MARK_ONE = 1 / 3    // deducted for wrong answer on a 1-mark question
+const NEG_MARK_TWO = 2 / 3    // deducted for wrong answer on a 2-mark question
+
+function calcQuestionScore(marks: number, chosen: string | undefined, correct: string): number {
+  if (!chosen) return 0
+  if (chosen === correct) return marks
+  return -(marks === 2 ? NEG_MARK_TWO : NEG_MARK_ONE)
+}
+
 interface Question {
   id: string
   question_no: number
@@ -146,7 +156,10 @@ export default function MockTestClient({ test, questions, existingAttempt }: Pro
         <div className="grid grid-cols-2 gap-4 mb-6">
           {[{ label: 'General Aptitude (GA)', qs: gaQuestions }, { label: 'Biotechnology (BT)', qs: btQuestions }].map((sec) => {
             const secCorrect = sec.qs.filter((q) => answers[q.id] === q.answer).length
-            const secMarks = sec.qs.reduce((acc, q) => acc + (answers[q.id] === q.answer ? q.marks : answers[q.id] ? -(q.marks === 2 ? 2 / 3 : 1 / 3) : 0), 0)
+            const secMarks = sec.qs.reduce(
+              (acc, q) => acc + calcQuestionScore(q.marks, answers[q.id], q.answer!),
+              0
+            )
             return (
               <div key={sec.label} className="bg-white border border-gray-100 rounded-xl p-4">
                 <p className="font-semibold text-gray-700 text-sm mb-2">{sec.label}</p>

@@ -166,7 +166,7 @@ export default function UsersClient({ initialUsers }: Props) {
                   key={u.id}
                   className={`${i !== 0 ? "border-t border-gray-100" : ""} hover:bg-gray-50`}
                 >
-                  <td className="px-4 py-3 text-gray-800 text-xs">{u.email ?? u.phone ?? u.id}</td>
+                  <td className="px-4 py-3 text-gray-800 text-xs">{u.email ?? u.phone ?? "Unknown User"}</td>
                   <td className="px-4 py-3 text-gray-500 text-xs">
                     {new Date(u.created_at).toLocaleDateString("en-IN")}
                   </td>

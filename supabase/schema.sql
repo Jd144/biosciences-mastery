@@ -358,7 +358,7 @@ CREATE TABLE IF NOT EXISTS public.mock_tests (
 -- Mock Test Questions (GATE BT pattern)
 -- Section GA: General Aptitude (10 Q)
 -- Section BT: Biotechnology Core (55 Q)
--- marks: 1 or 2; negative_marks stored as text like '-0.33' or '-0.67'
+-- marks: 1 or 2; negative marking applied at scoring time (-1/3 for 1-mark, -2/3 for 2-mark)
 CREATE TABLE IF NOT EXISTS public.mock_test_questions (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   test_id        UUID NOT NULL REFERENCES public.mock_tests(id) ON DELETE CASCADE,

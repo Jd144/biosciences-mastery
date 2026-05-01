@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getServiceClient } from '@/lib/admin'
 
+// GATE BT negative marking constants
+const NEGATIVE_MARKING_ONE_MARK = 1 / 3   // deducted for wrong on 1-mark question
+const NEGATIVE_MARKING_TWO_MARK = 2 / 3   // deducted for wrong on 2-mark question
+
 interface AnswerMap {
   [questionId: string]: string
 }
@@ -36,8 +40,7 @@ export async function POST(
     if (chosen === q.answer) {
       score += q.marks
     } else {
-      // Negative marking
-      score -= q.marks === 2 ? 2 / 3 : 1 / 3
+      score -= q.marks === 2 ? NEGATIVE_MARKING_TWO_MARK : NEGATIVE_MARKING_ONE_MARK
     }
   }
 

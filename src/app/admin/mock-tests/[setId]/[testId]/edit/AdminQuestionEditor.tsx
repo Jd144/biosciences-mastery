@@ -73,11 +73,15 @@ export default function AdminQuestionEditor({ testId, setId, initialQuestions }:
 
   const handleSaveAll = async () => {
     // Validate
+    const incompleteNos: number[] = []
     for (const q of questions) {
       if (!q.question || !q.options.A || !q.options.B || !q.options.C || !q.options.D) {
-        setSaveMsg('Please fill all question fields and options before saving.')
-        return
+        incompleteNos.push(q.question_no)
       }
+    }
+    if (incompleteNos.length > 0) {
+      setSaveMsg(`Please fill all fields for question(s): Q${incompleteNos.join(', Q')}`)
+      return
     }
     setSaving(true)
     setSaveMsg('')

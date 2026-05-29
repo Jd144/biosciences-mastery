@@ -1,0 +1,31 @@
+{
+  "strategy": "phased",
+  "phases": [
+    {
+      "name": "schema-first",
+      "goal": "Provision clean database and apply schema/migrations",
+      "inputs": ["supabase/schema.sql", "supabase/migrations"]
+    },
+    {
+      "name": "reference-data",
+      "goal": "Load foundational records needed for routes and authorization",
+      "inputs": ["supabase/seed.sql"]
+    },
+    {
+      "name": "transactional-data",
+      "goal": "Migrate users, entitlements, orders and coupons with integrity checks",
+      "inputs": ["auth users", "orders", "entitlements", "coupons"]
+    },
+    {
+      "name": "content-data",
+      "goal": "Migrate subjects, topics, notes, pyqs and quizzes",
+      "inputs": ["subjects", "topics", "content", "pyqs", "quizzes", "mock tests"]
+    }
+  ],
+  "verification": {
+    "counts": true,
+    "foreignKeyIntegrity": true,
+    "sampledRecordDiff": true,
+    "postMigrationSmokeTests": true
+  }
+}

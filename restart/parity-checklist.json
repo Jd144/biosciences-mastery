@@ -1,0 +1,25 @@
+{
+  "functionality": [
+    "Public pages load and navigation works",
+    "Auth flows (sign-up/sign-in/reset/OTP alternatives) are operational",
+    "Premium gating and entitlements are enforced",
+    "Payments create orders and webhook grants access",
+    "Admin CRUD flows work for subjects/topics/content/PYQs/quizzes/mock tests",
+    "AI chat and notes history routes work within limits"
+  ],
+  "performance": [
+    "Key app routes render without regressions",
+    "Core API endpoints complete within acceptable latency"
+  ],
+  "security": [
+    "Admin routes protected by role checks",
+    "Webhook signature verification enabled",
+    "Service-role usage restricted to server-side contexts"
+  ],
+  "deployment": [
+    "Required environment variables documented and configured",
+    "Build succeeds in CI",
+    "Database migrations apply successfully",
+    "Production smoke tests pass"
+  ]
+}

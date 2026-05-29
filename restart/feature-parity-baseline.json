@@ -1,0 +1,29 @@
+{
+  "features": [
+    "Authentication (email/password + OTP options)",
+    "Free vs premium access controls",
+    "Razorpay checkout for full-course and single-subject purchases",
+    "Subject and topic content delivery (notes, flowcharts, tables, diagrams)",
+    "PYQ and quiz systems",
+    "AI chat and AI notes with usage limits",
+    "Coupon validation and discounting",
+    "Admin panel for content, users, orders, coupons, analytics and settings"
+  ],
+  "authAndRoles": {
+    "provider": "Supabase Auth",
+    "roles": ["student", "admin"],
+    "adminBootstrap": "ADMIN_EMAIL allowlist and public.admin_allowlist table"
+  },
+  "dataModel": {
+    "schemaFile": "supabase/schema.sql",
+    "migrationsPath": "supabase/migrations",
+    "seedFile": "supabase/seed.sql"
+  },
+  "paritySources": [
+    "README.md",
+    "src/app",
+    "src/app/api",
+    "src/lib",
+    "supabase"
+  ]
+}

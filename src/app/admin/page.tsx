@@ -1,22 +1,22 @@
 import { createClient } from '@/lib/supabase/server'
 import { getServiceClient } from '@/lib/admin'
-import { BookOpen, Users, ShoppingCart, FileText } from 'lucide-react'
+import { BookOpen, Users, KeyRound, FileText } from 'lucide-react'
 
 export default async function AdminOverview() {
   const supabase = await createClient()
   const serviceSupabase = getServiceClient()
 
-  const [subjectsRes, topicsRes, ordersRes, usersRes] = await Promise.all([
+  const [subjectsRes, topicsRes, codesRes, usersRes] = await Promise.all([
     supabase.from('subjects').select('id', { count: 'exact' }),
     supabase.from('topics').select('id', { count: 'exact' }),
-    serviceSupabase.from('orders').select('id', { count: 'exact' }).eq('status', 'paid'),
+    serviceSupabase.from('access_codes').select('id', { count: 'exact' }),
     serviceSupabase.auth.admin.listUsers(),
   ])
 
   const stats = [
     { label: 'Subjects', value: subjectsRes.count ?? 0, icon: BookOpen, color: 'bg-emerald-100 text-emerald-600' },
     { label: 'Topics', value: topicsRes.count ?? 0, icon: FileText, color: 'bg-blue-100 text-blue-600' },
-    { label: 'Paid Orders', value: ordersRes.count ?? 0, icon: ShoppingCart, color: 'bg-purple-100 text-purple-600' },
+    { label: 'Access Codes', value: codesRes.count ?? 0, icon: KeyRound, color: 'bg-purple-100 text-purple-600' },
     { label: 'Total Users', value: usersRes.data?.users?.length ?? 0, icon: Users, color: 'bg-orange-100 text-orange-600' },
   ]
 
@@ -41,8 +41,7 @@ export default async function AdminOverview() {
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
         <h3 className="font-semibold text-amber-800 mb-2">Quick Actions</h3>
         <ul className="text-sm text-amber-700 space-y-1">
-          <li>• Go to <strong>Orders</strong> to view paid orders and revenue</li>
-          <li>• Go to <strong>Coupons</strong> to create and manage discount codes</li>
+          <li>• Go to <strong>Access Codes</strong> to generate and assign codes to students</li>
           <li>• Go to <strong>Subjects</strong> to manage the subject catalog</li>
           <li>• Go to <strong>Topics</strong> to add/edit topics for each subject</li>
           <li>• Go to <strong>Content</strong> to add notes, flowcharts, tables</li>

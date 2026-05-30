@@ -4,7 +4,7 @@ import { isConfiguredAdminEmail, normalizeEmail } from '@/lib/admin-emails'
 export async function isAdmin(userId: string, email?: string | null): Promise<boolean> {
   const normalizedEmail = normalizeEmail(email)
 
-  if (isConfiguredAdminEmail(email)) return true
+  if (isConfiguredAdminEmail(normalizedEmail)) return true
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY

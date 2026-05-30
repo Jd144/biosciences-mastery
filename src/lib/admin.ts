@@ -1,19 +1,10 @@
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-
-const DEFAULT_ADMIN_EMAILS = ['jdbanna34@gmail.com', '22ibo048@smvdu.ac.in']
-const ADMIN_EMAILS = (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAILS.join(','))
-  .split(',')
-  .map((email) => email.trim().toLowerCase())
-  .filter(Boolean)
-
-function normalizeEmail(email?: string | null): string | null {
-  return email?.trim().toLowerCase() ?? null
-}
+import { isConfiguredAdminEmail, normalizeEmail } from '@/lib/admin-emails'
 
 export async function isAdmin(userId: string, email?: string | null): Promise<boolean> {
   const normalizedEmail = normalizeEmail(email)
 
-  if (normalizedEmail && ADMIN_EMAILS.includes(normalizedEmail)) return true
+  if (isConfiguredAdminEmail(email)) return true
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY

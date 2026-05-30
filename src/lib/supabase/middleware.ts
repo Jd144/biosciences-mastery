@@ -1,16 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-
-const DEFAULT_ADMIN_EMAILS = ['jdbanna34@gmail.com', '22ibo048@smvdu.ac.in']
-const ADMIN_EMAILS = (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAILS.join(','))
-  .split(',')
-  .map((email) => email.trim().toLowerCase())
-  .filter(Boolean)
-
-function isConfiguredAdminEmail(email?: string | null): boolean {
-  if (!email) return false
-  return ADMIN_EMAILS.includes(email.trim().toLowerCase())
-}
+import { isConfiguredAdminEmail } from '@/lib/admin-emails'
 
 // Allow unauthenticated preview access to individual topic pages
 const PUBLIC_TOPIC_PATTERN = /^\/app\/subjects\/[^/]+\/topics\/[^/]+$/

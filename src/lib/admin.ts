@@ -25,7 +25,7 @@ export async function isAdmin(userId: string, email?: string | null): Promise<bo
     const { data: byEmail } = await supabase
       .from('admin_allowlist')
       .select('id')
-      .ilike('email', normalizedEmail)
+      .eq('email', normalizedEmail)
       .maybeSingle()
     if (byEmail) return true
   }

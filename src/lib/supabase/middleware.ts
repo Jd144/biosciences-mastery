@@ -1,7 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'jdbanna34@gmail.com'
+const DEFAULT_ADMIN_EMAILS = ['jdbanna34@gmail.com', '22ibo048@smvdu.ac.in']
+const ADMIN_EMAILS = (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAILS.join(','))
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean)
+
+function isConfiguredAdminEmail(email?: string | null): boolean {
+  if (!email) return false
+  return ADMIN_EMAILS.includes(email.trim().toLowerCase())
+}
 
 // Allow unauthenticated preview access to individual topic pages
 const PUBLIC_TOPIC_PATTERN = /^\/app\/subjects\/[^/]+\/topics\/[^/]+$/
@@ -50,7 +59,7 @@ export async function updateSession(request: NextRequest) {
   // Redirect logged-in users away from login page
   if (pathname === '/login' && user) {
     const url = request.nextUrl.clone()
-    url.pathname = user.email === ADMIN_EMAIL ? '/admin' : '/app/dashboard'
+    url.pathname = isConfiguredAdminEmail(user.email) ? '/admin' : '/app/dashboard'
     return NextResponse.redirect(url)
   }
 

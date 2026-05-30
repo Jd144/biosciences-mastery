@@ -1,9 +1,19 @@
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'jdbanna34@gmail.com'
+const DEFAULT_ADMIN_EMAILS = ['jdbanna34@gmail.com', '22ibo048@smvdu.ac.in']
+const ADMIN_EMAILS = (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAILS.join(','))
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean)
+
+function normalizeEmail(email?: string | null): string | null {
+  return email?.trim().toLowerCase() ?? null
+}
 
 export async function isAdmin(userId: string, email?: string | null): Promise<boolean> {
-  if (email && email === ADMIN_EMAIL) return true
+  const normalizedEmail = normalizeEmail(email)
+
+  if (normalizedEmail && ADMIN_EMAILS.includes(normalizedEmail)) return true
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -20,11 +30,11 @@ export async function isAdmin(userId: string, email?: string | null): Promise<bo
 
   if (byUserId) return true
 
-  if (email) {
+  if (normalizedEmail) {
     const { data: byEmail } = await supabase
       .from('admin_allowlist')
       .select('id')
-      .eq('email', email)
+      .ilike('email', normalizedEmail)
       .maybeSingle()
     if (byEmail) return true
   }

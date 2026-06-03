@@ -125,10 +125,6 @@ npm run dev
 
 Login with the email set in `ADMIN_EMAIL` (default: `jdbanna34@gmail.com`) and password authentication from Supabase Auth.
 
-For this project setup, use:
-- Email: `jdbanna34@gmail.com`
-- Password: `jdbanna34@gmail.com`
-
 This email is allowlisted in `public.admin_allowlist` by migration, so after sign-in it redirects to `/admin`.
 
 For other admin accounts, add the user's UUID and email to `public.admin_allowlist`.

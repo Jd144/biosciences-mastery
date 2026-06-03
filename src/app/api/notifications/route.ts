@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+const DEADLINE_REMINDER_DAYS = [7, 3, 1]
+
 function daysUntil(dateString: string): number {
   const today = new Date()
   const target = new Date(dateString)
@@ -20,7 +22,7 @@ async function ensureDeadlineReminders(userId: string, examId: string, supabase:
   if (!registrationEvent?.event_date) return
 
   const daysLeft = daysUntil(registrationEvent.event_date)
-  if (![7, 3, 1].includes(daysLeft)) return
+  if (!DEADLINE_REMINDER_DAYS.includes(daysLeft)) return
 
   const key = `registration_end_${examId}_${daysLeft}`
   const { data: existing } = await supabase

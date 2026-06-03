@@ -229,3 +229,71 @@ CROSS JOIN (VALUES
 ) AS t(slug, title, order_index)
 WHERE s.slug = 'animal-biotechnology-bioprocessing'
 ON CONFLICT (subject_id, slug) DO NOTHING;
+
+-- ============================================================
+-- BIOTECHNOLOGY EXAMS
+-- ============================================================
+INSERT INTO public.exams (code, name, description, official_link, syllabus_link, registration_link, study_resources_link)
+VALUES
+  ('GATE_BT', 'GATE Biotechnology', 'Graduate Aptitude Test in Engineering - Biotechnology. National level entrance test for M.Tech/PhD admissions.', 'https://gate2026.iitr.ac.in/', 'https://gate2026.iitr.ac.in/syllabus.html', 'https://goaps.iitr.ac.in/', 'https://gate2026.iitr.ac.in/'),
+  ('CSIR_NET_LS', 'CSIR NET Life Sciences', 'CSIR UGC NET - Life Sciences for Junior Research Fellowship and Lectureship eligibility.', 'https://csirnet.nta.ac.in/', 'https://csirnet.nta.ac.in/syllabus/', 'https://csirnet.nta.ac.in/', 'https://csirhrdg.res.in/'),
+  ('DBT_JRF', 'DBT-JRF', 'Department of Biotechnology - Junior Research Fellowship for PhD in Biotechnology/Life Sciences.', 'https://dbtindia.gov.in/', 'https://rcb.res.in/DBTPG/', 'https://rcb.res.in/DBTPG/', 'https://dbtindia.gov.in/schemes-programmes/research-development'),
+  ('ICMR_JRF', 'ICMR-JRF', 'Indian Council of Medical Research - Junior Research Fellowship for biomedical sciences research.', 'https://www.icmr.gov.in/', 'https://www.icmr.gov.in/exam.html', 'https://www.icmr.gov.in/', 'https://main.icmr.nic.in/content/fellowships'),
+  ('ICAR_NET', 'ICAR NET', 'Indian Council of Agricultural Research - NET for agricultural sciences research fellowship and lectureship.', 'https://icar.nta.ac.in/', 'https://icar.nta.ac.in/information-bulletin/', 'https://icar.nta.ac.in/', 'https://www.icar.org.in/')
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO public.exam_details (exam_id, eligibility, exam_pattern, marking_scheme, duration, seats_approximate, fellowship_details, stipend_details, award_amount)
+SELECT e.id,
+  d.eligibility,
+  d.exam_pattern,
+  d.marking_scheme,
+  d.duration,
+  d.seats_approximate,
+  d.fellowship_details,
+  d.stipend_details,
+  d.award_amount
+FROM public.exams e
+JOIN (
+  VALUES
+    ('GATE_BT', 'Bachelor degree holders in engineering/technology/science streams as per GATE notification.', 'Computer-based test. General Aptitude + Biotechnology sections.', '1-mark and 2-mark questions; negative marking applicable for MCQs.', '3 hours', 'Institutes dependent', NULL, NULL, NULL),
+    ('CSIR_NET_LS', 'M.Sc./Integrated BS-MS/B.Tech/B.E/B.Pharma/MBBS or equivalent in Life Sciences related disciplines.', 'Single paper with Part A (General Aptitude), Part B and Part C (Life Sciences).', 'Mixed objective questions with partial negative marking.', '3 hours', 'JRF/LS category as notified', 'JRF and Lectureship eligibility.', 'As per CSIR/UGC norms', NULL),
+    ('DBT_JRF', 'Master degree in Biotechnology/Life Sciences with required aggregate and category relaxations.', 'National Biotechnology Eligibility Test (objective format).', 'As per DBT BET information bulletin.', '3 hours', 'Category wise based on merit', 'DBT-Junior Research Fellowship for PhD.', 'As per DBT fellowship rules', 'Government fellowship rates apply'),
+    ('ICMR_JRF', 'Postgraduate degree in basic professional courses with minimum marks as per ICMR notice.', 'Computer based objective test in biomedical sciences.', 'Negative marking and sectional distribution as notified.', '2 hours', 'Merit based shortlist', 'ICMR-JRF for biomedical PhD research.', 'As per ICMR fellowship norms', 'Government fellowship rates apply'),
+    ('ICAR_NET', 'Master degree in relevant Agricultural disciplines from recognized universities.', 'Objective paper for Agricultural Research Services/NET eligibility.', 'As per ICAR NET notification.', '2 hours', 'Subject-wise merit based', 'Research and lectureship eligibility in agricultural sciences.', 'As per ICAR fellowship norms', NULL)
+) AS d(code, eligibility, exam_pattern, marking_scheme, duration, seats_approximate, fellowship_details, stipend_details, award_amount)
+ON d.code = e.code
+ON CONFLICT (exam_id) DO NOTHING;
+
+INSERT INTO public.exam_timelines (exam_id, event_type, event_date, event_label)
+SELECT e.id, t.event_type, t.event_date, t.event_label
+FROM public.exams e
+JOIN (
+  VALUES
+    ('GATE_BT', 'registration_start', DATE '2025-08-28', 'Registration Opens'),
+    ('GATE_BT', 'registration_end', DATE '2025-10-03', 'Registration Closes'),
+    ('GATE_BT', 'admit_card_release', DATE '2026-01-02', 'Admit Card Release'),
+    ('GATE_BT', 'exam_date', DATE '2026-02-07', 'Exam Date'),
+    ('GATE_BT', 'result_date', DATE '2026-03-19', 'Result Date'),
+    ('CSIR_NET_LS', 'registration_start', DATE '2026-03-01', 'Application Start'),
+    ('CSIR_NET_LS', 'registration_end', DATE '2026-03-30', 'Application Deadline'),
+    ('CSIR_NET_LS', 'admit_card_release', DATE '2026-06-10', 'Admit Card Release'),
+    ('CSIR_NET_LS', 'exam_date', DATE '2026-06-28', 'Exam Date'),
+    ('CSIR_NET_LS', 'result_date', DATE '2026-08-20', 'Result Announcement'),
+    ('DBT_JRF', 'registration_start', DATE '2026-02-15', 'Application Start'),
+    ('DBT_JRF', 'registration_end', DATE '2026-03-17', 'Application Deadline'),
+    ('DBT_JRF', 'admit_card_release', DATE '2026-05-08', 'Admit Card Release'),
+    ('DBT_JRF', 'exam_date', DATE '2026-05-17', 'Exam Date'),
+    ('DBT_JRF', 'result_date', DATE '2026-06-30', 'Result Announcement'),
+    ('ICMR_JRF', 'registration_start', DATE '2026-04-01', 'Application Start'),
+    ('ICMR_JRF', 'registration_end', DATE '2026-04-30', 'Application Deadline'),
+    ('ICMR_JRF', 'admit_card_release', DATE '2026-06-20', 'Admit Card Release'),
+    ('ICMR_JRF', 'exam_date', DATE '2026-07-12', 'Exam Date'),
+    ('ICMR_JRF', 'result_date', DATE '2026-08-25', 'Result Announcement'),
+    ('ICAR_NET', 'registration_start', DATE '2026-02-20', 'Registration Start'),
+    ('ICAR_NET', 'registration_end', DATE '2026-03-20', 'Registration Deadline'),
+    ('ICAR_NET', 'admit_card_release', DATE '2026-05-25', 'Admit Card Release'),
+    ('ICAR_NET', 'exam_date', DATE '2026-06-15', 'Exam Date'),
+    ('ICAR_NET', 'result_date', DATE '2026-07-30', 'Result Date')
+) AS t(code, event_type, event_date, event_label)
+ON t.code = e.code
+ON CONFLICT (exam_id, event_type) DO NOTHING;

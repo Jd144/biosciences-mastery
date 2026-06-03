@@ -1,11 +1,12 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import ThemeToggle from '@/components/ThemeToggle'
-import { BookOpen, LogOut, LayoutDashboard, ShieldCheck, FlaskConical, User, GraduationCap } from 'lucide-react'
+import { BookOpen, LogOut, LayoutDashboard, ShieldCheck, FlaskConical, User, GraduationCap, Bell } from 'lucide-react'
 
 interface NavbarProps {
   isAdmin?: boolean
@@ -14,6 +15,17 @@ interface NavbarProps {
 export default function Navbar({ isAdmin }: NavbarProps) {
   const router = useRouter()
   const supabase = createClient()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    fetch('/api/notifications')
+      .then((response) => response.json())
+      .then((payload: { notifications?: Array<{ is_read: boolean }> }) => {
+        const unread = (payload.notifications ?? []).filter((item) => !item.is_read).length
+        setUnreadCount(unread)
+      })
+      .catch(() => {})
+  }, [])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -75,6 +87,30 @@ export default function Navbar({ isAdmin }: NavbarProps) {
               <GraduationCap className="w-4 h-4" />
               Mock Tests
             </Link>
+            <Link
+              href="/app/exams"
+              className="flex items-center gap-1.5 text-sm font-medium hover:text-emerald-600 transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <FlaskConical className="w-4 h-4" />
+              My Exam
+            </Link>
+            <Link
+              href="/app/profile"
+              className="flex items-center gap-1.5 text-sm font-medium hover:text-emerald-600 transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <User className="w-4 h-4" />
+              Profile
+            </Link>
+            <Link
+              href="/app/notifications"
+              className="flex items-center gap-1.5 text-sm font-medium hover:text-emerald-600 transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <Bell className="w-4 h-4" />
+              Notifications {unreadCount > 0 ? `(${unreadCount})` : ''}
+            </Link>
             {isAdmin && (
               <>
                 <Link
@@ -122,4 +158,3 @@ export default function Navbar({ isAdmin }: NavbarProps) {
     </nav>
   )
 }
-

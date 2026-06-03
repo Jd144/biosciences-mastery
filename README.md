@@ -16,6 +16,12 @@ India's GAT-B (Graduate Aptitude Test in Biotechnology) preparation platform bui
   - AI Notes Generator (click-to-generate, cached per user/topic/language)
 - **Coupon System**: Admin-managed discount coupons (percent or flat)
 - **Admin Panel**: Manage subjects, topics, content, PYQs, quizzes, users, orders, coupons, analytics
+- **Biotech Exam System**:
+  - 5 major exams: GATE Biotechnology, CSIR NET Life Sciences, DBT-JRF, ICMR-JRF, ICAR NET
+  - Exam timelines (registration, admit card, exam date, result date)
+  - User profile with exam selection
+  - Personalized exam dashboard + notification center
+  - Admin exam updates with notification logs + webhook email integration
 
 ---
 
@@ -93,6 +99,7 @@ NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_live_...
 
 # Admin
 ADMIN_EMAIL=jdbanna34@gmail.com
+EXAM_NOTIFICATION_WEBHOOK_URL=https://your-email-service-webhook.example.com/send
 
 # Optional: override free/premium limits
 FREE_AI_REQUESTS_PER_DAY=5
@@ -116,7 +123,9 @@ npm run dev
 
 ### 5. Admin Access
 
-Login with the email set in `ADMIN_EMAIL` (default: `jdbanna34@gmail.com`). You will be redirected directly to `/admin`.
+Login with the email set in `ADMIN_EMAIL` (default: `jdbanna34@gmail.com`) and password authentication from Supabase Auth.
+
+This email is allowlisted in `public.admin_allowlist` by migration, so after sign-in it redirects to `/admin`.
 
 For other admin accounts, add the user's UUID and email to `public.admin_allowlist`.
 
@@ -183,3 +192,4 @@ Access at `/admin` (admin login required).
 | Coupons | Create/manage discount coupons |
 | Analytics | Usage statistics |
 | Settings | Site configuration |
+| Biotech Exams | Manage exam details, timelines, links, and trigger notifications |

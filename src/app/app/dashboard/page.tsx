@@ -20,6 +20,21 @@ export default async function DashboardPage() {
     .order('order_index')
     .limit(6)
 
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('selected_exam_id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  const selectedExamId = profile?.selected_exam_id ?? null
+  const { data: selectedExam } = selectedExamId
+    ? await supabase
+        .from('exams')
+        .select('id, name, code, exam_timelines(event_type, event_date)')
+        .eq('id', selectedExamId)
+        .maybeSingle()
+    : { data: null }
+
   // Check entitlements
   const { data: entitlements } = await supabase
     .from('entitlements')
@@ -38,6 +53,35 @@ export default async function DashboardPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Welcome back! 👋</h1>
         <p className="text-gray-500 mt-1">{displayName}</p>
+      </div>
+
+      {/* Personalized Exam Section */}
+      <div className="bg-white border rounded-xl p-4 mb-8">
+        <p className="text-xs uppercase tracking-wide text-emerald-600 font-semibold">Your biotechnology exam</p>
+        {selectedExam ? (
+          <div className="mt-1">
+            <p className="font-semibold text-gray-900">{selectedExam.name}</p>
+            <div className="text-sm text-gray-600 mt-1 space-y-1">
+              {(selectedExam.exam_timelines ?? [])
+                .filter((timeline) => ['registration_end', 'admit_card_release', 'exam_date', 'result_date'].includes(timeline.event_type))
+                .map((timeline) => (
+                  <p key={timeline.event_type}>
+                    {timeline.event_type.replace(/_/g, ' ')}: {new Date(timeline.event_date).toLocaleDateString()}
+                  </p>
+                ))}
+            </div>
+            <Link href="/app/exams" className="inline-block mt-3 text-emerald-700 text-sm font-medium hover:underline">
+              Open personalized exam dashboard →
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-1">
+            <p className="text-sm text-gray-600">Select your exam in profile to get personalized timelines and notifications.</p>
+            <Link href="/app/profile" className="inline-block mt-2 text-emerald-700 text-sm font-medium hover:underline">
+              Complete profile & select exam →
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Access Status */}

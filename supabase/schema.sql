@@ -407,3 +407,117 @@ CREATE POLICY "Users can update own mock_test_attempts" ON public.mock_test_atte
 CREATE INDEX IF NOT EXISTS idx_mock_test_questions_test_id ON public.mock_test_questions(test_id);
 CREATE INDEX IF NOT EXISTS idx_mock_test_attempts_user ON public.mock_test_attempts(user_id);
 CREATE INDEX IF NOT EXISTS idx_mock_tests_set_id ON public.mock_tests(set_id);
+
+-- ============================================================
+-- BIOTECHNOLOGY EXAM SYSTEM
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.exams (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  code              TEXT NOT NULL UNIQUE,
+  name              TEXT NOT NULL,
+  description       TEXT NOT NULL,
+  official_link     TEXT NOT NULL,
+  syllabus_link     TEXT,
+  registration_link TEXT,
+  admit_card_link   TEXT,
+  result_link       TEXT,
+  study_resources_link TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.exam_timelines (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  exam_id      UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
+  event_type   TEXT NOT NULL CHECK (event_type IN ('registration_start', 'registration_end', 'admit_card_release', 'exam_date', 'result_date')),
+  event_date   DATE NOT NULL,
+  event_label  TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (exam_id, event_type)
+);
+
+CREATE TABLE IF NOT EXISTS public.exam_details (
+  exam_id            UUID PRIMARY KEY REFERENCES public.exams(id) ON DELETE CASCADE,
+  eligibility        TEXT,
+  exam_pattern       TEXT,
+  marking_scheme     TEXT,
+  duration           TEXT,
+  seats_approximate  TEXT,
+  fellowship_details TEXT,
+  stipend_details    TEXT,
+  award_amount       TEXT,
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+  user_id             UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name           TEXT,
+  profile_picture_url TEXT,
+  bio                 TEXT,
+  selected_exam_id    UUID REFERENCES public.exams(id) ON DELETE SET NULL,
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.user_exams (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  exam_id    UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, exam_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.user_notifications (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id           UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  exam_id           UUID REFERENCES public.exams(id) ON DELETE CASCADE,
+  type              TEXT NOT NULL,
+  title             TEXT NOT NULL,
+  message           TEXT NOT NULL,
+  html_message      TEXT,
+  is_read           BOOLEAN NOT NULL DEFAULT false,
+  email_status      TEXT,
+  metadata          JSONB NOT NULL DEFAULT '{}'::JSONB,
+  notification_key  TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_notifications_unique_key
+  ON public.user_notifications(user_id, notification_key)
+  WHERE notification_key IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS public.exam_notification_logs (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  exam_id    UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
+  user_id    UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  email      TEXT,
+  status     TEXT NOT NULL,
+  payload    JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.exams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exam_timelines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exam_details ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_exams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exam_notification_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read exams" ON public.exams FOR SELECT USING (true);
+CREATE POLICY "Anyone can read exam timelines" ON public.exam_timelines FOR SELECT USING (true);
+CREATE POLICY "Anyone can read exam details" ON public.exam_details FOR SELECT USING (true);
+CREATE POLICY "Users can read own profile" ON public.user_profiles FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own profile" ON public.user_profiles FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can read own exams" ON public.user_exams FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage own exams" ON public.user_exams FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can read own notifications" ON public.user_notifications FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own notifications" ON public.user_notifications FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can mark own notifications" ON public.user_notifications FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Service role manages exam notification logs" ON public.exam_notification_logs FOR ALL USING (false);
+
+CREATE INDEX IF NOT EXISTS idx_exam_timelines_exam_id ON public.exam_timelines(exam_id);
+CREATE INDEX IF NOT EXISTS idx_user_exams_user_id ON public.user_exams(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_notifications_user_id ON public.user_notifications(user_id, created_at DESC);
